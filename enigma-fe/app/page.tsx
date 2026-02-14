@@ -1,65 +1,173 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { useDashboardWS } from "@/hooks/useDashboardWS";
+import { useHealth } from "@/hooks/useHealth";
+import Header from "@/components/dashboard/Header";
+import Sidebar from "@/components/dashboard/Sidebar";
+import SituationOverview from "@/components/dashboard/SituationOverview";
+import HypothesesPanel from "@/components/dashboard/HypothesesPanel";
+import ExplanationSections from "@/components/dashboard/ExplanationSections";
+import LiveFeed from "@/components/dashboard/LiveFeed";
+import Footer from "@/components/dashboard/Footer";
+
+export default function DashboardPage() {
+  const {
+    connectionState,
+    situations,
+    feed,
+    recentlyUpdated,
+    isConnected,
+  } = useDashboardWS();
+
+  const { health, latencyMs, lastUpdate } = useHealth();
+
+  const [selectedSituationId, setSelectedSituationId] = useState<string | null>(null);
+
+  // Auto-select the first situation if none is selected
+  useEffect(() => {
+    if (!selectedSituationId && situations.size > 0) {
+      const firstId = Array.from(situations.keys())[0];
+      setSelectedSituationId(firstId);
+    }
+  }, [situations, selectedSituationId]);
+
+  const selectedAnalysis = selectedSituationId
+    ? situations.get(selectedSituationId) ?? null
+    : null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+        background: "var(--bg-primary)",
+      }}
+    >
+      {/* Header */}
+      <Header connectionState={connectionState} />
+
+      {/* Main body: Sidebar + Content */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* Sidebar */}
+        <Sidebar
+          situations={situations}
+          selectedId={selectedSituationId}
+          onSelect={setSelectedSituationId}
+          recentlyUpdated={recentlyUpdated}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+
+        {/* Main content area */}
+        <main
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            padding: "16px",
+            gap: "16px",
+          }}
+        >
+          {selectedAnalysis ? (
+            <>
+              {/* Top row: Overview + Hypotheses */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "16px",
+                  minHeight: 0,
+                }}
+              >
+                <SituationOverview analysis={selectedAnalysis} />
+                <HypothesesPanel
+                  hypotheses={selectedAnalysis.langgraph.hypotheses}
+                  dominantId={selectedAnalysis.explanation.dominant_hypothesis_id}
+                />
+              </div>
+
+              {/* Middle: Explanation sections */}
+              <div
+                style={{
+                  flex: "0 1 auto",
+                  minHeight: 0,
+                  overflowY: "auto",
+                }}
+              >
+                <ExplanationSections sections={selectedAnalysis.explanation.sections} />
+              </div>
+
+              {/* Bottom: Live Feed */}
+              <div style={{ flex: "1 1 200px", minHeight: "180px", overflow: "hidden" }}>
+                <LiveFeed feed={feed} />
+              </div>
+            </>
+          ) : (
+            /* Empty state */
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "16px",
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+              <div
+                style={{
+                  width: "80px",
+                  height: "80px",
+                  borderRadius: "50%",
+                  background: "rgba(59, 130, 246, 0.08)",
+                  border: "1px solid rgba(59, 130, 246, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "2rem",
+                }}
+                className="animate-pulse-glow"
+              >
+                🛡️
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    fontSize: "1.1rem",
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {isConnected ? "Monitoring Active" : "Connecting…"}
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", maxWidth: "320px" }}>
+                  {isConnected
+                    ? "Waiting for the AI reasoning engine to detect and analyze threats. Analyses will appear here in real time."
+                    : "Establishing secure connection to the threat analysis backend…"}
+                </div>
+              </div>
+
+              {/* Still show live feed even without selection */}
+              {feed.length > 0 && (
+                <div style={{ width: "100%", maxWidth: "700px", height: "250px", marginTop: "16px" }}>
+                  <LiveFeed feed={feed} />
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Footer */}
+      <Footer
+        health={health}
+        latencyMs={latencyMs}
+        lastUpdate={lastUpdate}
+        isConnected={isConnected}
+      />
     </div>
   );
 }
