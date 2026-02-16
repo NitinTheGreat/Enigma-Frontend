@@ -3,7 +3,16 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { SituationAnalysis, ConnectionState } from "@/types/dashboard";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://13.233.93.2:8000/ws/dashboard";
+const RAW_WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://13.233.93.2:8000/ws/dashboard";
+
+function getWsUrl(): string {
+    let url = RAW_WS_URL;
+    // Auto-upgrade to wss:// when page is served over HTTPS
+    if (typeof window !== "undefined" && window.location.protocol === "https:") {
+        url = url.replace(/^ws:\/\//i, "wss://");
+    }
+    return url;
+}
 const PING_INTERVAL = 30_000;
 const MAX_RECONNECT_DELAY = 30_000;
 const MAX_FEED_SIZE = 200;
@@ -45,7 +54,7 @@ export function useDashboardWS() {
         if (!mountedRef.current) return;
 
         try {
-            const ws = new WebSocket(WS_URL);
+            const ws = new WebSocket(getWsUrl());
             wsRef.current = ws;
 
             ws.onopen = () => {
