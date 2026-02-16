@@ -8,9 +8,10 @@ interface SituationOverviewProps {
 }
 
 function ProgressRing({ value, size = 56, stroke = 4, color }: { value: number; size?: number; stroke?: number; color: string }) {
+    const safeValue = isNaN(value) ? 0 : Math.max(0, Math.min(1, value));
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - value * circumference;
+    const offset = circumference - safeValue * circumference;
 
     return (
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
@@ -38,14 +39,23 @@ function ProgressRing({ value, size = 56, stroke = 4, color }: { value: number; 
     );
 }
 
-function durationStr(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
+function durationStr(dateStr: string | undefined | null): string {
+    if (!dateStr) return "—";
+    const parsed = new Date(dateStr).getTime();
+    if (isNaN(parsed)) return "—";
+    const diff = Date.now() - parsed;
+    if (diff < 0) return "just now";
     const seconds = Math.floor(diff / 1000);
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
     const hours = Math.floor(minutes / 60);
     return `${hours}h ${minutes % 60}m`;
+}
+
+function safePercent(value: number | undefined | null): string {
+    if (value == null || isNaN(value)) return "—";
+    return `${Math.round(value * 100)}%`;
 }
 
 export default function SituationOverview({ analysis }: SituationOverviewProps) {
@@ -64,7 +74,7 @@ export default function SituationOverview({ analysis }: SituationOverviewProps) 
 
     // Dominant hypothesis
     const dominant = langgraph.hypotheses.find((h) => h.id === explanation.dominant_hypothesis_id);
-    const confidencePct = Math.round(explanation.dominant_confidence * 100);
+    const confidencePct = isNaN(explanation.dominant_confidence) ? 0 : Math.round(explanation.dominant_confidence * 100);
 
     // Trend
     const trendIcon = reasoning.trend === "escalating" ? "🔺" : reasoning.trend === "deescalating" ? "🔻" : "➖";
@@ -76,7 +86,10 @@ export default function SituationOverview({ analysis }: SituationOverviewProps) 
                 <div>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
                         <span className={`badge ${statusBadge}`}>{statusLabel}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        <span
+                            style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-muted)" }}
+                            title={situation.situation_id}
+                        >
                             {situation.situation_id.substring(0, 8)}…
                         </span>
                     </div>
@@ -101,7 +114,7 @@ export default function SituationOverview({ analysis }: SituationOverviewProps) 
                             color: "var(--purple-light)",
                         }}
                     >
-                        {Math.round(langgraph.convergence_score * 100)}%
+                        {safePercent(langgraph.convergence_score)}
                     </div>
                     <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", marginTop: "2px" }}>CONVERGENCE</div>
                 </div>
@@ -119,37 +132,51 @@ export default function SituationOverview({ analysis }: SituationOverviewProps) 
                     borderRadius: "8px",
                 }}
             >
-                <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>Evidence</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                        {situation.evidence_count}
-                    </div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>Anomaly</div>
+                {[
+                    {
+                        label: "Evidence",
+                        value: String(situation.evidence_count ?? "—"),
+                        color: "var(--text-bright)",
+                    },
+                    {
+                        label: "Anomaly",
+                        value: safePercent(situation.max_anomaly),
+                        color: (situation.max_anomaly ?? 0) > 0.8 ? "var(--red)" : (situation.max_anomaly ?? 0) > 0.5 ? "var(--amber)" : "var(--green)",
+                    },
+                    {
+                        label: "Stability",
+                        value: safePercent(langgraph.belief_stability),
+                        color: "var(--blue-light)",
+                    },
+                    {
+                        label: "Iterations",
+                        value: String(langgraph.iterations ?? "—"),
+                        color: "var(--text-bright)",
+                    },
+                ].map((metric) => (
                     <div
+                        key={metric.label}
                         style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "1rem",
-                            fontWeight: 700,
-                            color: situation.max_anomaly > 0.8 ? "var(--red)" : situation.max_anomaly > 0.5 ? "var(--amber)" : "var(--green)",
+                            textAlign: "center",
+                            padding: "4px",
+                            borderRadius: "6px",
+                            transition: "background 0.2s ease",
+                            cursor: "default",
                         }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.04)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                     >
-                        {(situation.max_anomaly * 100).toFixed(0)}%
+                        <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>
+                            {metric.label}
+                        </div>
+                        <div
+                            className="animate-count-up"
+                            style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 700, color: metric.color }}
+                        >
+                            {metric.value}
+                        </div>
                     </div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>Stability</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 700, color: "var(--blue-light)" }}>
-                        {(langgraph.belief_stability * 100).toFixed(0)}%
-                    </div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.55rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>Iterations</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 700, color: "var(--text-bright)" }}>
-                        {langgraph.iterations}
-                    </div>
-                </div>
+                ))}
             </div>
 
             {/* Dominant hypothesis */}

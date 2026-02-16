@@ -18,7 +18,8 @@ function ContributionBadge({ direction }: { direction: string | null }) {
 }
 
 function CounterfactualCard({ cf }: { cf: Counterfactual }) {
-    const isPositive = cf.confidence_delta > 0;
+    const delta = isNaN(cf.confidence_delta) ? 0 : cf.confidence_delta;
+    const isPositive = delta > 0;
     return (
         <div
             style={{
@@ -27,6 +28,15 @@ function CounterfactualCard({ cf }: { cf: Counterfactual }) {
                 border: "1px solid rgba(139, 92, 246, 0.15)",
                 borderRadius: "8px",
                 marginBottom: "6px",
+                transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.background = "rgba(139, 92, 246, 0.1)";
+                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.25)";
+            }}
+            onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.background = "rgba(139, 92, 246, 0.06)";
+                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.15)";
             }}
         >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
@@ -53,7 +63,7 @@ function CounterfactualCard({ cf }: { cf: Counterfactual }) {
                         whiteSpace: "nowrap",
                     }}
                 >
-                    {isPositive ? "+" : ""}{cf.confidence_delta.toFixed(2)}
+                    {isPositive ? "+" : ""}{delta.toFixed(2)}
                 </div>
             </div>
         </div>
@@ -61,7 +71,6 @@ function CounterfactualCard({ cf }: { cf: Counterfactual }) {
 }
 
 function TemporalMiniViz({ bullets }: { bullets: string[] }) {
-    // Extract key metrics from bullets
     const trendLine = bullets.find(b => b.toLowerCase().includes("trend"));
     const velocityLine = bullets.find(b => b.toLowerCase().includes("velocity"));
     const stabilityLine = bullets.find(b => b.toLowerCase().includes("stability"));
@@ -89,7 +98,6 @@ function TemporalMiniViz({ bullets }: { bullets: string[] }) {
 
 export default function ExplanationSections({ sections }: ExplanationSectionsProps) {
     const [expandedSet, setExpandedSet] = useState<Set<number>>(() => {
-        // Auto-expand SUMMARY
         const initial = new Set<number>();
         sections.forEach((s, i) => {
             if (s.type === "SUMMARY") initial.add(i);
@@ -106,19 +114,73 @@ export default function ExplanationSections({ sections }: ExplanationSectionsPro
         });
     };
 
+    const expandAll = () => {
+        setExpandedSet(new Set(sections.map((_, i) => i)));
+    };
+
+    const collapseAll = () => {
+        setExpandedSet(new Set());
+    };
+
     return (
         <div className="glass-card animate-fade-in" style={{ padding: "20px" }}>
             <div
                 style={{
-                    fontSize: "0.65rem",
-                    fontWeight: 600,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: "var(--text-muted)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                     marginBottom: "14px",
                 }}
             >
-                AI Explanation
+                <div
+                    style={{
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--text-muted)",
+                    }}
+                >
+                    AI Explanation
+                </div>
+                <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                        onClick={expandAll}
+                        style={{
+                            background: "none",
+                            border: "1px solid var(--border-default)",
+                            color: "var(--text-muted)",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "0.6rem",
+                            fontFamily: "var(--font-mono)",
+                            transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hover)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-default)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)"; }}
+                    >
+                        Expand All
+                    </button>
+                    <button
+                        onClick={collapseAll}
+                        style={{
+                            background: "none",
+                            border: "1px solid var(--border-default)",
+                            color: "var(--text-muted)",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "0.6rem",
+                            fontFamily: "var(--font-mono)",
+                            transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hover)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-default)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)"; }}
+                    >
+                        Collapse All
+                    </button>
+                </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -139,18 +201,7 @@ export default function ExplanationSections({ sections }: ExplanationSectionsPro
                             {/* Header */}
                             <button
                                 onClick={() => toggle(idx)}
-                                style={{
-                                    width: "100%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    padding: "10px 14px",
-                                    background: "transparent",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    color: "var(--text-primary)",
-                                    textAlign: "left",
-                                }}
+                                className="section-header-btn"
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                     <span style={{ fontSize: "0.85rem" }}>{SECTION_TYPE_ICONS[section.type] || "📄"}</span>
@@ -158,7 +209,7 @@ export default function ExplanationSections({ sections }: ExplanationSectionsPro
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                     <ContributionBadge direction={section.contribution_direction} />
-                                    {section.contribution_score != null && (
+                                    {section.contribution_score != null && !isNaN(section.contribution_score) && (
                                         <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--text-muted)" }}>
                                             {(section.contribution_score * 100).toFixed(0)}%
                                         </span>
@@ -167,8 +218,9 @@ export default function ExplanationSections({ sections }: ExplanationSectionsPro
                                         style={{
                                             fontSize: "0.7rem",
                                             color: "var(--text-muted)",
-                                            transition: "transform 0.2s",
+                                            transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                                             transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                                            display: "inline-block",
                                         }}
                                     >
                                         ▼
@@ -176,58 +228,62 @@ export default function ExplanationSections({ sections }: ExplanationSectionsPro
                                 </div>
                             </button>
 
-                            {/* Body */}
-                            {isExpanded && (
-                                <div style={{ padding: "0 14px 14px" }}>
-                                    {/* Temporal evolution mini viz */}
-                                    {section.type === "TEMPORAL_EVOLUTION" && (
-                                        <TemporalMiniViz bullets={section.bullets} />
-                                    )}
+                            {/* Collapsible Body */}
+                            <div
+                                className="section-collapsible"
+                                data-expanded={isExpanded ? "true" : "false"}
+                            >
+                                <div className="section-collapsible-inner">
+                                    <div style={{ padding: "0 14px 14px" }}>
+                                        {/* Temporal evolution mini viz */}
+                                        {section.type === "TEMPORAL_EVOLUTION" && (
+                                            <TemporalMiniViz bullets={section.bullets} />
+                                        )}
 
-                                    {/* Standard bullets */}
-                                    <ul
-                                        style={{
-                                            margin: 0,
-                                            padding: "0 0 0 16px",
-                                            listStyleType: "none",
-                                        }}
-                                    >
-                                        {section.bullets
-                                            .filter((b) => {
-                                                // Skip bullets already shown in TemporalMiniViz
-                                                if (section.type === "TEMPORAL_EVOLUTION") {
-                                                    const lower = b.toLowerCase();
-                                                    if (lower.includes("trend") || lower.includes("velocity") || lower.includes("stability")) return false;
-                                                }
-                                                return true;
-                                            })
-                                            .map((bullet, bIdx) => (
-                                                <li
-                                                    key={bIdx}
-                                                    style={{
-                                                        fontSize: "0.77rem",
-                                                        color: "var(--text-secondary)",
-                                                        lineHeight: 1.6,
-                                                        padding: "2px 0",
-                                                        position: "relative",
-                                                    }}
-                                                >
-                                                    <span style={{ position: "absolute", left: "-14px", color: "var(--text-muted)" }}>›</span>
-                                                    {bullet}
-                                                </li>
-                                            ))}
-                                    </ul>
+                                        {/* Standard bullets */}
+                                        <ul
+                                            style={{
+                                                margin: 0,
+                                                padding: "0 0 0 16px",
+                                                listStyleType: "none",
+                                            }}
+                                        >
+                                            {section.bullets
+                                                .filter((b) => {
+                                                    if (section.type === "TEMPORAL_EVOLUTION") {
+                                                        const lower = b.toLowerCase();
+                                                        if (lower.includes("trend") || lower.includes("velocity") || lower.includes("stability")) return false;
+                                                    }
+                                                    return true;
+                                                })
+                                                .map((bullet, bIdx) => (
+                                                    <li
+                                                        key={bIdx}
+                                                        style={{
+                                                            fontSize: "0.77rem",
+                                                            color: "var(--text-secondary)",
+                                                            lineHeight: 1.6,
+                                                            padding: "2px 0",
+                                                            position: "relative",
+                                                        }}
+                                                    >
+                                                        <span style={{ position: "absolute", left: "-14px", color: "var(--text-muted)" }}>›</span>
+                                                        {bullet}
+                                                    </li>
+                                                ))}
+                                        </ul>
 
-                                    {/* Counterfactuals */}
-                                    {section.counterfactuals && section.counterfactuals.length > 0 && (
-                                        <div style={{ marginTop: "10px" }}>
-                                            {section.counterfactuals.map((cf, cfIdx) => (
-                                                <CounterfactualCard key={cfIdx} cf={cf} />
-                                            ))}
-                                        </div>
-                                    )}
+                                        {/* Counterfactuals */}
+                                        {section.counterfactuals && section.counterfactuals.length > 0 && (
+                                            <div style={{ marginTop: "10px" }}>
+                                                {section.counterfactuals.map((cf, cfIdx) => (
+                                                    <CounterfactualCard key={cfIdx} cf={cf} />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     );
                 })}

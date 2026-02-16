@@ -12,15 +12,22 @@ interface FooterProps {
 export default function Footer({ health, latencyMs, lastUpdate, isConnected }: FooterProps) {
     const formatTime = (date: Date | null): string => {
         if (!date) return "--:--:--";
-        return date.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-        });
+        try {
+            if (isNaN(date.getTime())) return "--:--:--";
+            return date.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+            });
+        } catch {
+            return "--:--:--";
+        }
     };
 
-    const stats: { label: string; value: string; color?: string }[] = [
+    const isHighLatency = latencyMs != null && latencyMs > 500;
+
+    const stats: { label: string; value: string; color?: string; pulse?: boolean }[] = [
         {
             label: "STATUS",
             value: health?.status?.toUpperCase() || "UNKNOWN",
@@ -38,18 +45,19 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
         },
         {
             label: "AVG CONF",
-            value: health ? `${(health.average_confidence * 100).toFixed(0)}%` : "—",
+            value: health && !isNaN(health.average_confidence) ? `${(health.average_confidence * 100).toFixed(0)}%` : "—",
             color: "var(--blue-light)",
         },
         {
             label: "MAX RATE",
-            value: health ? `${health.max_event_rate.toFixed(1)}/s` : "—",
+            value: health && !isNaN(health.max_event_rate) ? `${health.max_event_rate.toFixed(1)}/s` : "—",
             color: "var(--purple-light)",
         },
         {
             label: "LATENCY",
             value: latencyMs != null ? `${latencyMs}ms` : "—",
-            color: latencyMs != null && latencyMs > 500 ? "var(--amber)" : "var(--green)",
+            color: isHighLatency ? "var(--amber)" : "var(--green)",
+            pulse: isHighLatency,
         },
         {
             label: "LAST UPDATE",
@@ -80,12 +88,7 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
             {stats.map((stat) => (
                 <div
                     key={stat.label}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        padding: "2px 0",
-                    }}
+                    className="stat-item"
                 >
                     <span
                         style={{
@@ -99,11 +102,13 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
                         {stat.label}
                     </span>
                     <span
+                        className={stat.pulse ? "latency-high" : ""}
                         style={{
                             fontFamily: "var(--font-mono)",
                             fontSize: "0.65rem",
                             fontWeight: 600,
                             color: stat.color || "var(--text-secondary)",
+                            transition: "color 0.3s ease",
                         }}
                     >
                         {stat.value}

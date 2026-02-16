@@ -11,6 +11,21 @@ import ExplanationSections from "@/components/dashboard/ExplanationSections";
 import LiveFeed from "@/components/dashboard/LiveFeed";
 import Footer from "@/components/dashboard/Footer";
 
+function SkeletonCard({ lines = 3, height }: { lines?: number; height?: string }) {
+  return (
+    <div className="glass-card" style={{ padding: "20px", height }}>
+      <div className="skeleton skeleton-line" style={{ width: "40%", marginBottom: "16px" }} />
+      {Array.from({ length: lines }).map((_, i) => (
+        <div
+          key={i}
+          className={`skeleton skeleton-line ${i === lines - 1 ? "skeleton-line-short" : "skeleton-line-medium"}`}
+          style={{ animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const {
     connectionState,
@@ -35,6 +50,8 @@ export default function DashboardPage() {
   const selectedAnalysis = selectedSituationId
     ? situations.get(selectedSituationId) ?? null
     : null;
+
+  const showSkeleton = connectionState === "reconnecting" || (connectionState === "connected" && situations.size === 0);
 
   return (
     <div
@@ -103,6 +120,23 @@ export default function DashboardPage() {
               <div style={{ flex: "1 1 200px", minHeight: "180px", overflow: "hidden" }}>
                 <LiveFeed feed={feed} />
               </div>
+            </>
+          ) : showSkeleton ? (
+            /* Skeleton Loading State */
+            <>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "16px",
+                  minHeight: 0,
+                }}
+              >
+                <SkeletonCard lines={5} />
+                <SkeletonCard lines={4} />
+              </div>
+              <SkeletonCard lines={3} />
+              <SkeletonCard lines={2} height="180px" />
             </>
           ) : (
             /* Empty state */

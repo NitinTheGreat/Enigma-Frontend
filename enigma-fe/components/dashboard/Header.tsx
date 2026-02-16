@@ -32,6 +32,7 @@ export default function Header({ connectionState }: HeaderProps) {
             {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <div
+                    className="logo-breathing"
                     style={{
                         fontSize: "1.5rem",
                         fontWeight: 700,
@@ -40,6 +41,7 @@ export default function Header({ connectionState }: HeaderProps) {
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                         fontFamily: "var(--font-mono)",
+                        cursor: "default",
                     }}
                 >
                     ENIGMA
@@ -69,6 +71,7 @@ export default function Header({ connectionState }: HeaderProps) {
                         borderRadius: "9999px",
                         background: "rgba(255,255,255,0.04)",
                         border: `1px solid ${status.color}33`,
+                        transition: "all 0.3s ease",
                     }}
                 >
                     <div
@@ -79,6 +82,7 @@ export default function Header({ connectionState }: HeaderProps) {
                             borderRadius: "50%",
                             backgroundColor: status.color,
                             boxShadow: `0 0 8px ${status.glow}`,
+                            transition: "all 0.3s ease",
                         }}
                     />
                     <span
@@ -88,6 +92,7 @@ export default function Header({ connectionState }: HeaderProps) {
                             fontFamily: "var(--font-mono)",
                             color: status.color,
                             letterSpacing: "0.06em",
+                            transition: "color 0.3s ease",
                         }}
                     >
                         {status.label}

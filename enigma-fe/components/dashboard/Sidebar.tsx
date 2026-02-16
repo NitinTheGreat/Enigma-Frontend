@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import type { SituationAnalysis } from "@/types/dashboard";
 import { SIGNAL_TYPE_COLORS, SIGNAL_TYPE_ICONS } from "@/types/dashboard";
 
@@ -10,8 +11,12 @@ interface SidebarProps {
     recentlyUpdated: Set<string>;
 }
 
-function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
+function timeAgo(dateStr: string | undefined | null): string {
+    if (!dateStr) return "—";
+    const parsed = new Date(dateStr).getTime();
+    if (isNaN(parsed)) return "—";
+    const diff = Date.now() - parsed;
+    if (diff < 0) return "just now";
     const seconds = Math.floor(diff / 1000);
     if (seconds < 60) return `${seconds}s ago`;
     const minutes = Math.floor(seconds / 60);
@@ -22,19 +27,62 @@ function timeAgo(dateStr: string): string {
 }
 
 function anomalyColor(val: number): string {
+    if (isNaN(val)) return "var(--text-muted)";
     if (val > 0.8) return "var(--red)";
     if (val > 0.5) return "var(--amber)";
     return "var(--green)";
 }
 
+type FilterType = "all" | "escalating" | "high-anomaly";
+
 export default function Sidebar({ situations, selectedId, onSelect, recentlyUpdated }: SidebarProps) {
-    const sortedSituations = Array.from(situations.values()).sort(
-        (a, b) => new Date(b.situation.last_activity).getTime() - new Date(a.situation.last_activity).getTime()
-    );
+    const [search, setSearch] = useState("");
+    const [filter, setFilter] = useState<FilterType>("all");
+
+    const sortedSituations = useMemo(() => {
+        return Array.from(situations.values()).sort(
+            (a, b) => {
+                const tA = new Date(b.situation.last_activity).getTime();
+                const tB = new Date(a.situation.last_activity).getTime();
+                // Guard against NaN in sort
+                if (isNaN(tA) && isNaN(tB)) return 0;
+                if (isNaN(tA)) return -1;
+                if (isNaN(tB)) return 1;
+                return tA - tB;
+            }
+        );
+    }, [situations]);
+
+    const filteredSituations = useMemo(() => {
+        let list = sortedSituations;
+
+        // Apply filter
+        if (filter === "escalating") {
+            list = list.filter((a) => a.reasoning.trend === "escalating");
+        } else if (filter === "high-anomaly") {
+            list = list.filter((a) => a.situation.max_anomaly > 0.5);
+        }
+
+        // Apply search
+        if (search.trim()) {
+            const q = search.toLowerCase().trim();
+            list = list.filter((a) => {
+                const sit = a.situation;
+                return (
+                    sit.situation_id.toLowerCase().includes(q) ||
+                    sit.entities.some((e) => e.toLowerCase().includes(q)) ||
+                    sit.signal_types.some((t) => t.toLowerCase().includes(q))
+                );
+            });
+        }
+
+        return list;
+    }, [sortedSituations, search, filter]);
 
     // Aggregate stats
-    const totalSignals = sortedSituations.reduce((sum, s) => sum + s.situation.evidence_count, 0);
+    const totalSignals = sortedSituations.reduce((sum, s) => sum + (s.situation.evidence_count || 0), 0);
     const allTypes = new Set(sortedSituations.flatMap((s) => s.situation.signal_types));
+    const escalatingCount = sortedSituations.filter((s) => s.reasoning.trend === "escalating").length;
 
     return (
         <aside
@@ -68,14 +116,73 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                 >
                     Active Situations
                 </div>
-                <div style={{ fontSize: "1.8rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-bright)" }}>
-                    {sortedSituations.length}
+                <div style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: "8px",
+                }}>
+                    <div style={{ fontSize: "1.8rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-bright)" }}
+                        className="animate-count-up">
+                        {sortedSituations.length}
+                    </div>
+                    {escalatingCount > 0 && (
+                        <span className="badge badge-red" style={{ fontSize: "0.55rem" }}>
+                            🔺 {escalatingCount} escalating
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* Search & Filter */}
+            <div style={{ padding: "10px 12px 6px", borderBottom: "1px solid var(--border-default)" }}>
+                {/* Search Input */}
+                <div style={{ position: "relative", marginBottom: "8px" }}>
+                    <span style={{
+                        position: "absolute",
+                        left: "10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                        pointerEvents: "none",
+                    }}>
+                        🔍
+                    </span>
+                    <input
+                        className="search-input"
+                        type="text"
+                        placeholder="Search by ID, entity, or type…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+
+                {/* Filter pills */}
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    <button
+                        className={`filter-pill ${filter === "all" ? "filter-pill-active" : ""}`}
+                        onClick={() => setFilter("all")}
+                    >
+                        All ({sortedSituations.length})
+                    </button>
+                    <button
+                        className={`filter-pill ${filter === "escalating" ? "filter-pill-active" : ""}`}
+                        onClick={() => setFilter("escalating")}
+                    >
+                        🔺 Escalating ({escalatingCount})
+                    </button>
+                    <button
+                        className={`filter-pill ${filter === "high-anomaly" ? "filter-pill-active" : ""}`}
+                        onClick={() => setFilter("high-anomaly")}
+                    >
+                        ⚠️ High Anomaly
+                    </button>
                 </div>
             </div>
 
             {/* Situations List */}
             <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
-                {sortedSituations.length === 0 && (
+                {filteredSituations.length === 0 && (
                     <div
                         style={{
                             padding: "24px 16px",
@@ -84,13 +191,37 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                             fontSize: "0.8rem",
                         }}
                     >
-                        No active situations.
-                        <br />
-                        Waiting for threat data…
+                        {search || filter !== "all" ? (
+                            <>
+                                No situations match filters.
+                                <br />
+                                <button
+                                    onClick={() => { setSearch(""); setFilter("all"); }}
+                                    style={{
+                                        marginTop: "8px",
+                                        background: "none",
+                                        border: "1px solid var(--border-default)",
+                                        color: "var(--blue-light)",
+                                        padding: "4px 12px",
+                                        borderRadius: "6px",
+                                        cursor: "pointer",
+                                        fontSize: "0.7rem",
+                                    }}
+                                >
+                                    Clear filters
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                No active situations.
+                                <br />
+                                Waiting for threat data…
+                            </>
+                        )}
                     </div>
                 )}
 
-                {sortedSituations.map((analysis, idx) => {
+                {filteredSituations.map((analysis, idx) => {
                     const sit = analysis.situation;
                     const isSelected = selectedId === sit.situation_id;
                     const isRecent = recentlyUpdated.has(sit.situation_id);
@@ -99,15 +230,13 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                         <div
                             key={sit.situation_id}
                             onClick={() => onSelect(sit.situation_id)}
-                            className={`animate-fade-in stagger-${Math.min(idx + 1, 5)} ${isRecent ? "animate-border-pulse" : ""}`}
+                            className={`card-interactive animate-fade-in stagger-${Math.min(idx + 1, 5)} ${isRecent ? "animate-border-pulse" : ""}`}
                             style={{
                                 padding: "12px",
                                 marginBottom: "6px",
                                 borderRadius: "10px",
-                                cursor: "pointer",
                                 background: isSelected ? "rgba(59, 130, 246, 0.1)" : "var(--glass-bg)",
                                 border: `1px solid ${isSelected ? "var(--blue)" : isRecent ? "var(--blue-light)" : "var(--glass-border)"}`,
-                                transition: "all 0.2s ease",
                                 ...(isRecent ? { ["--glow-color" as string]: "var(--blue-light)" } : {}),
                             }}
                         >
@@ -120,6 +249,7 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                                         fontWeight: 600,
                                         color: "var(--text-bright)",
                                     }}
+                                    title={sit.situation_id}
                                 >
                                     {sit.situation_id.substring(0, 8)}
                                 </span>
@@ -131,7 +261,7 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                                         color: anomalyColor(sit.max_anomaly),
                                     }}
                                 >
-                                    {(sit.max_anomaly * 100).toFixed(0)}%
+                                    {isNaN(sit.max_anomaly) ? "—" : `${(sit.max_anomaly * 100).toFixed(0)}%`}
                                 </span>
                             </div>
 
@@ -174,7 +304,7 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                                         className="badge badge-blue"
                                         style={{ fontSize: "0.6rem", padding: "1px 5px" }}
                                     >
-                                        {sit.evidence_count} signals
+                                        {sit.evidence_count || 0} signals
                                     </span>
                                     <span style={{ fontSize: "0.6rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                                         {timeAgo(sit.last_activity)}

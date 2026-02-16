@@ -8,14 +8,18 @@ interface LiveFeedProps {
 }
 
 function severityColor(anomaly: number): string {
+    if (isNaN(anomaly)) return "var(--text-muted)";
     if (anomaly > 0.8) return "var(--red)";
     if (anomaly > 0.5) return "var(--amber)";
     return "var(--green)";
 }
 
-function formatTime(dateStr: string): string {
+function formatTime(dateStr: string | undefined | null): string {
+    if (!dateStr) return "--:--:--";
     try {
-        return new Date(dateStr).toLocaleTimeString("en-US", {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return "--:--:--";
+        return d.toLocaleTimeString("en-US", {
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
@@ -79,6 +83,7 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
                         fontSize: "0.65rem",
                         fontWeight: 600,
                         fontFamily: "var(--font-mono)",
+                        transition: "all 0.2s ease",
                     }}
                 >
                     {paused ? "▶ RESUME" : "⏸ PAUSE"}
@@ -103,6 +108,7 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
                             fontSize: "0.8rem",
                         }}
                     >
+                        <div style={{ fontSize: "1.5rem", marginBottom: "8px", opacity: 0.5 }}>📡</div>
                         Waiting for analysis events…
                     </div>
                 )}
@@ -112,20 +118,16 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
                     const dominant = analysis.langgraph.hypotheses.find(
                         (h) => h.id === analysis.explanation.dominant_hypothesis_id
                     );
-                    const confidence = Math.round(analysis.explanation.dominant_confidence * 100);
+                    const confidence = isNaN(analysis.explanation.dominant_confidence)
+                        ? 0
+                        : Math.round(analysis.explanation.dominant_confidence * 100);
 
                     return (
                         <div
                             key={`${sit.situation_id}-${sit.last_activity}-${idx}`}
-                            className={idx < 3 ? "animate-slide-right" : ""}
+                            className={`feed-row ${idx < 3 ? "animate-slide-right" : ""}`}
                             style={{
-                                display: "flex",
-                                gap: "12px",
-                                padding: "10px 8px",
-                                borderBottom: "1px solid var(--border-default)",
                                 borderLeft: `3px solid ${severityColor(sit.max_anomaly)}`,
-                                marginBottom: "2px",
-                                borderRadius: "0 4px 4px 0",
                             }}
                         >
                             {/* Timestamp */}
@@ -151,6 +153,7 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
                                             fontWeight: 600,
                                             color: "var(--blue-light)",
                                         }}
+                                        title={sit.situation_id}
                                     >
                                         {sit.situation_id.substring(0, 8)}
                                     </span>
