@@ -20,10 +20,7 @@ function formatTime(dateStr: string | undefined | null): string {
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return "--:--:--";
         return d.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
+            hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
         });
     } catch {
         return "--:--:--";
@@ -34,7 +31,6 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [paused, setPaused] = useState(false);
 
-    // Auto-scroll to top (newest first) unless paused
     useEffect(() => {
         if (!paused && containerRef.current) {
             containerRef.current.scrollTop = 0;
@@ -44,46 +40,43 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
     return (
         <div className="glass-card animate-fade-in" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
             {/* Header */}
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "14px 20px 10px",
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div
-                        style={{
-                            fontSize: "0.65rem",
-                            fontWeight: 600,
-                            letterSpacing: "0.1em",
-                            textTransform: "uppercase",
-                            color: "var(--text-muted)",
-                        }}
-                    >
-                        Live Activity Feed
+            <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "16px 20px 12px",
+            }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{
+                        width: "28px", height: "28px", borderRadius: "var(--radius-sm)",
+                        background: "var(--green-surface)", border: "1px solid rgba(16,185,129,0.15)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "0.85rem",
+                    }}>
+                        📡
                     </div>
-                    <span
-                        className="badge badge-blue"
-                        style={{ fontSize: "0.55rem", padding: "1px 5px" }}
-                    >
+                    <span style={{
+                        fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em",
+                        textTransform: "uppercase", color: "var(--text-muted)",
+                    }}>
+                        Live Activity Feed
+                    </span>
+                    <span className="badge badge-green" style={{ fontSize: "0.55rem" }}>
                         {feed.length}
                     </span>
                 </div>
                 <button
                     onClick={() => setPaused((p) => !p)}
                     style={{
-                        padding: "4px 10px",
-                        borderRadius: "6px",
-                        border: `1px solid ${paused ? "var(--amber)" : "var(--border-default)"}`,
-                        background: paused ? "var(--amber-glow)" : "rgba(255,255,255,0.04)",
-                        color: paused ? "var(--amber)" : "var(--text-muted)",
+                        padding: "5px 14px",
+                        borderRadius: "var(--radius-sm)",
+                        border: `1px solid ${paused ? "rgba(245,158,11,0.3)" : "var(--border-default)"}`,
+                        background: paused ? "var(--amber-surface)" : "rgba(255,255,255,0.03)",
+                        color: paused ? "var(--amber)" : "var(--text-dim)",
                         cursor: "pointer",
                         fontSize: "0.65rem",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         fontFamily: "var(--font-mono)",
-                        transition: "all 0.2s ease",
+                        letterSpacing: "0.04em",
+                        transition: "all 0.25s ease",
                     }}
                 >
                     {paused ? "▶ RESUME" : "⏸ PAUSE"}
@@ -91,25 +84,13 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
             </div>
 
             {/* Feed */}
-            <div
-                ref={containerRef}
-                style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    padding: "0 12px 12px",
-                }}
-            >
+            <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "0 12px 12px" }}>
                 {feed.length === 0 && (
-                    <div
-                        style={{
-                            textAlign: "center",
-                            padding: "32px 16px",
-                            color: "var(--text-muted)",
-                            fontSize: "0.8rem",
-                        }}
-                    >
-                        <div style={{ fontSize: "1.5rem", marginBottom: "8px", opacity: 0.5 }}>📡</div>
-                        Waiting for analysis events…
+                    <div style={{
+                        textAlign: "center", padding: "40px 16px", color: "var(--text-dim)",
+                    }}>
+                        <div style={{ fontSize: "1.8rem", marginBottom: "10px", opacity: 0.3 }}>📡</div>
+                        <div style={{ fontSize: "0.82rem" }}>Waiting for analysis events…</div>
                     </div>
                 )}
 
@@ -128,56 +109,37 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
                             className={`feed-row ${idx < 3 ? "animate-slide-right" : ""}`}
                             style={{
                                 borderLeft: `3px solid ${severityColor(sit.max_anomaly)}`,
+                                animationDelay: idx < 3 ? `${idx * 0.08}s` : undefined,
                             }}
                         >
                             {/* Timestamp */}
-                            <div
-                                style={{
-                                    fontFamily: "var(--font-mono)",
-                                    fontSize: "0.65rem",
-                                    color: "var(--text-muted)",
-                                    minWidth: "60px",
-                                    paddingTop: "2px",
-                                }}
-                            >
+                            <div style={{
+                                fontFamily: "var(--font-mono)", fontSize: "0.65rem",
+                                color: "var(--text-dim)", minWidth: "62px", paddingTop: "2px",
+                            }}>
                                 {formatTime(sit.last_activity)}
                             </div>
 
                             {/* Content */}
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                                    <span
-                                        style={{
-                                            fontFamily: "var(--font-mono)",
-                                            fontSize: "0.7rem",
-                                            fontWeight: 600,
-                                            color: "var(--blue-light)",
-                                        }}
-                                        title={sit.situation_id}
-                                    >
+                                    <span style={{
+                                        fontFamily: "var(--font-mono)", fontSize: "0.72rem",
+                                        fontWeight: 700, color: "var(--blue-light)",
+                                    }} title={sit.situation_id}>
                                         {sit.situation_id.substring(0, 8)}
                                     </span>
                                     {sit.signal_types.slice(0, 2).map((t) => (
-                                        <span
-                                            key={t}
-                                            className="badge badge-gray"
-                                            style={{ fontSize: "0.55rem", padding: "0 4px" }}
-                                        >
+                                        <span key={t} className="badge badge-gray" style={{ fontSize: "0.5rem", padding: "1px 5px" }}>
                                             {t}
                                         </span>
                                     ))}
                                 </div>
                                 {dominant && (
-                                    <div
-                                        style={{
-                                            fontSize: "0.72rem",
-                                            color: "var(--text-secondary)",
-                                            lineHeight: 1.4,
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
+                                    <div style={{
+                                        fontSize: "0.75rem", color: "var(--text-secondary)",
+                                        lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                    }}>
                                         {dominant.description}
                                     </div>
                                 )}
@@ -185,14 +147,10 @@ export default function LiveFeed({ feed }: LiveFeedProps) {
 
                             {/* Confidence */}
                             <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                                <span
-                                    style={{
-                                        fontFamily: "var(--font-mono)",
-                                        fontSize: "0.75rem",
-                                        fontWeight: 700,
-                                        color: confidence > 70 ? "var(--green)" : confidence > 40 ? "var(--amber)" : "var(--text-muted)",
-                                    }}
-                                >
+                                <span style={{
+                                    fontFamily: "var(--font-mono)", fontSize: "0.78rem", fontWeight: 700,
+                                    color: confidence > 70 ? "var(--green)" : confidence > 40 ? "var(--amber)" : "var(--text-dim)",
+                                }}>
                                     {confidence}%
                                 </span>
                             </div>

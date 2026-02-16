@@ -15,10 +15,7 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
         try {
             if (isNaN(date.getTime())) return "--:--:--";
             return date.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: false,
+                hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
             });
         } catch {
             return "--:--:--";
@@ -27,7 +24,7 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
 
     const isHighLatency = latencyMs != null && latencyMs > 500;
 
-    const stats: { label: string; value: string; color?: string; pulse?: boolean }[] = [
+    const stats: { label: string; value: string; color: string; pulse?: boolean }[] = [
         {
             label: "STATUS",
             value: health?.status?.toUpperCase() || "UNKNOWN",
@@ -65,7 +62,7 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
             color: "var(--text-secondary)",
         },
         {
-            label: "WS",
+            label: "WEBSOCKET",
             value: isConnected ? "CONNECTED" : "DISCONNECTED",
             color: isConnected ? "var(--green)" : "var(--red)",
         },
@@ -76,43 +73,46 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: F
             style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 24px",
-                background: "rgba(10, 15, 26, 0.9)",
+                justifyContent: "center",
+                padding: "10px 28px",
+                background: "rgba(6, 10, 20, 0.95)",
                 borderTop: "1px solid var(--border-default)",
-                backdropFilter: "blur(12px)",
-                flexWrap: "wrap",
+                backdropFilter: "blur(20px)",
                 gap: "4px",
+                flexWrap: "wrap",
+                position: "relative",
             }}
         >
-            {stats.map((stat) => (
-                <div
-                    key={stat.label}
-                    className="stat-item"
-                >
-                    <span
-                        style={{
-                            fontSize: "0.55rem",
-                            fontWeight: 600,
-                            letterSpacing: "0.06em",
-                            color: "var(--text-muted)",
-                            textTransform: "uppercase",
-                        }}
-                    >
-                        {stat.label}
-                    </span>
-                    <span
-                        className={stat.pulse ? "latency-high" : ""}
-                        style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "0.65rem",
-                            fontWeight: 600,
-                            color: stat.color || "var(--text-secondary)",
-                            transition: "color 0.3s ease",
-                        }}
-                    >
-                        {stat.value}
-                    </span>
+            {/* Subtle top accent line */}
+            <div style={{
+                position: "absolute",
+                left: 0, right: 0, height: "1px", top: -1,
+                background: "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.2) 50%, transparent 100%)",
+            }} />
+
+            {stats.map((stat, idx) => (
+                <div key={stat.label} style={{ display: "contents" }}>
+                    <div className="stat-item">
+                        <span style={{
+                            fontSize: "0.5rem", fontWeight: 600, letterSpacing: "0.06em",
+                            color: "var(--text-dim)", textTransform: "uppercase",
+                        }}>
+                            {stat.label}
+                        </span>
+                        <span
+                            className={stat.pulse ? "latency-high" : ""}
+                            style={{
+                                fontFamily: "var(--font-mono)", fontSize: "0.65rem",
+                                fontWeight: 600, color: stat.color,
+                                transition: "color 0.3s ease",
+                            }}
+                        >
+                            {stat.value}
+                        </span>
+                    </div>
+                    {idx < stats.length - 1 && (
+                        <div style={{ width: "1px", height: "18px", background: "var(--border-subtle)", margin: "0 2px" }} />
+                    )}
                 </div>
             ))}
         </footer>

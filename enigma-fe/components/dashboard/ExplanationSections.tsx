@@ -11,10 +11,10 @@ interface ExplanationSectionsProps {
 function ContributionBadge({ direction }: { direction: string | null }) {
     if (!direction) return null;
     if (direction === "SUPPORTING")
-        return <span style={{ fontSize: "0.6rem", color: "var(--green)", fontWeight: 600 }}>↑ SUPPORTING</span>;
+        return <span style={{ fontSize: "0.6rem", color: "var(--green)", fontWeight: 600 }}>↑ SUPPORT</span>;
     if (direction === "OPPOSING")
-        return <span style={{ fontSize: "0.6rem", color: "var(--red)", fontWeight: 600 }}>↓ OPPOSING</span>;
-    return <span style={{ fontSize: "0.6rem", color: "var(--text-muted)", fontWeight: 600 }}>— NEUTRAL</span>;
+        return <span style={{ fontSize: "0.6rem", color: "var(--red)", fontWeight: 600 }}>↓ OPPOSE</span>;
+    return <span style={{ fontSize: "0.6rem", color: "var(--text-dim)", fontWeight: 600 }}>— NEUTRAL</span>;
 }
 
 function CounterfactualCard({ cf }: { cf: Counterfactual }) {
@@ -23,46 +23,46 @@ function CounterfactualCard({ cf }: { cf: Counterfactual }) {
     return (
         <div
             style={{
-                padding: "10px 12px",
-                background: "rgba(139, 92, 246, 0.06)",
-                border: "1px solid rgba(139, 92, 246, 0.15)",
-                borderRadius: "8px",
-                marginBottom: "6px",
-                transition: "all 0.2s ease",
+                padding: "12px 14px",
+                background: "var(--purple-surface)",
+                border: "1px solid rgba(139, 92, 246, 0.12)",
+                borderRadius: "var(--radius-md)",
+                marginBottom: "8px",
+                transition: "all 0.25s ease",
             }}
             onMouseEnter={(e) => {
                 (e.currentTarget as HTMLDivElement).style.background = "rgba(139, 92, 246, 0.1)";
                 (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.25)";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)";
             }}
             onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.background = "rgba(139, 92, 246, 0.06)";
-                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.15)";
+                (e.currentTarget as HTMLDivElement).style.background = "var(--purple-surface)";
+                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.12)";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)";
             }}
         >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "14px" }}>
                 <div style={{ flex: 1 }}>
-                    <div style={{ marginBottom: "4px" }}>
-                        <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--amber)", marginRight: "6px" }}>IF</span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--amber-light)" }}>{cf.missing_condition}</span>
+                    <div style={{ marginBottom: "5px" }}>
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--amber)", marginRight: "6px", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>IF</span>
+                        <span style={{ fontSize: "0.78rem", color: "var(--amber-light)" }}>{cf.missing_condition}</span>
                     </div>
                     <div>
-                        <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--text-muted)", marginRight: "6px" }}>THEN</span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-primary)" }}>{cf.expected_effect}</span>
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--text-dim)", marginRight: "6px", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>THEN</span>
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-primary)" }}>{cf.expected_effect}</span>
                     </div>
                 </div>
-                <div
-                    style={{
-                        padding: "4px 8px",
-                        borderRadius: "6px",
-                        background: isPositive ? "var(--green-glow)" : "var(--red-glow)",
-                        border: `1px solid ${isPositive ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.7rem",
-                        fontWeight: 700,
-                        color: isPositive ? "var(--green-light)" : "var(--red-light)",
-                        whiteSpace: "nowrap",
-                    }}
-                >
+                <div style={{
+                    padding: "4px 10px",
+                    borderRadius: "var(--radius-sm)",
+                    background: isPositive ? "var(--green-surface)" : "var(--red-surface)",
+                    border: `1px solid ${isPositive ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: isPositive ? "var(--green-light)" : "var(--red-light)",
+                    whiteSpace: "nowrap",
+                }}>
                     {isPositive ? "+" : ""}{delta.toFixed(2)}
                 </div>
             </div>
@@ -74,24 +74,25 @@ function TemporalMiniViz({ bullets }: { bullets: string[] }) {
     const trendLine = bullets.find(b => b.toLowerCase().includes("trend"));
     const velocityLine = bullets.find(b => b.toLowerCase().includes("velocity"));
     const stabilityLine = bullets.find(b => b.toLowerCase().includes("stability"));
+    const items = [
+        trendLine && { icon: "📈", text: trendLine },
+        velocityLine && { icon: "⚡", text: velocityLine },
+        stabilityLine && { icon: "🔄", text: stabilityLine },
+    ].filter(Boolean);
+
+    if (items.length === 0) return null;
 
     return (
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "8px", marginBottom: "4px" }}>
-            {trendLine && (
-                <div style={{ padding: "6px 12px", background: "rgba(167,139,250,0.08)", borderRadius: "6px", fontSize: "0.7rem", color: "var(--purple-light)" }}>
-                    📈 {trendLine}
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px", marginBottom: "6px" }}>
+            {items.map((item, idx) => item && (
+                <div key={idx} style={{
+                    padding: "8px 14px", background: "rgba(167,139,250,0.06)",
+                    borderRadius: "var(--radius-sm)", border: "1px solid rgba(167,139,250,0.1)",
+                    fontSize: "0.72rem", color: "var(--purple-light)",
+                }}>
+                    {item.icon} {item.text}
                 </div>
-            )}
-            {velocityLine && (
-                <div style={{ padding: "6px 12px", background: "rgba(167,139,250,0.08)", borderRadius: "6px", fontSize: "0.7rem", color: "var(--purple-light)" }}>
-                    ⚡ {velocityLine}
-                </div>
-            )}
-            {stabilityLine && (
-                <div style={{ padding: "6px 12px", background: "rgba(167,139,250,0.08)", borderRadius: "6px", fontSize: "0.7rem", color: "var(--purple-light)" }}>
-                    🔄 {stabilityLine}
-                </div>
-            )}
+            ))}
         </div>
     );
 }
@@ -99,90 +100,51 @@ function TemporalMiniViz({ bullets }: { bullets: string[] }) {
 export default function ExplanationSections({ sections }: ExplanationSectionsProps) {
     const [expandedSet, setExpandedSet] = useState<Set<number>>(() => {
         const initial = new Set<number>();
-        sections.forEach((s, i) => {
-            if (s.type === "SUMMARY") initial.add(i);
-        });
+        sections.forEach((s, i) => { if (s.type === "SUMMARY") initial.add(i); });
         return initial;
     });
 
     const toggle = (idx: number) => {
         setExpandedSet((prev) => {
             const next = new Set(prev);
-            if (next.has(idx)) next.delete(idx);
-            else next.add(idx);
+            if (next.has(idx)) next.delete(idx); else next.add(idx);
             return next;
         });
     };
 
-    const expandAll = () => {
-        setExpandedSet(new Set(sections.map((_, i) => i)));
-    };
-
-    const collapseAll = () => {
-        setExpandedSet(new Set());
-    };
-
     return (
-        <div className="glass-card animate-fade-in" style={{ padding: "20px" }}>
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "14px",
-                }}
-            >
-                <div
-                    style={{
-                        fontSize: "0.65rem",
-                        fontWeight: 600,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        color: "var(--text-muted)",
-                    }}
-                >
-                    AI Explanation
+        <div className="glass-card animate-fade-in" style={{ padding: "24px" }}>
+            {/* Header */}
+            <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px",
+            }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{
+                        width: "28px", height: "28px", borderRadius: "var(--radius-sm)",
+                        background: "var(--blue-surface)", border: "1px solid rgba(59,130,246,0.15)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "0.85rem",
+                    }}>
+                        📋
+                    </div>
+                    <span style={{
+                        fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em",
+                        textTransform: "uppercase", color: "var(--text-muted)",
+                    }}>
+                        AI Explanation
+                    </span>
                 </div>
                 <div style={{ display: "flex", gap: "6px" }}>
-                    <button
-                        onClick={expandAll}
-                        style={{
-                            background: "none",
-                            border: "1px solid var(--border-default)",
-                            color: "var(--text-muted)",
-                            padding: "2px 8px",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "0.6rem",
-                            fontFamily: "var(--font-mono)",
-                            transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hover)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-default)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)"; }}
-                    >
+                    <button className="mini-btn" onClick={() => setExpandedSet(new Set(sections.map((_, i) => i)))}>
                         Expand All
                     </button>
-                    <button
-                        onClick={collapseAll}
-                        style={{
-                            background: "none",
-                            border: "1px solid var(--border-default)",
-                            color: "var(--text-muted)",
-                            padding: "2px 8px",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "0.6rem",
-                            fontFamily: "var(--font-mono)",
-                            transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hover)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-default)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)"; }}
-                    >
+                    <button className="mini-btn" onClick={() => setExpandedSet(new Set())}>
                         Collapse All
                     </button>
                 </div>
             </div>
 
+            {/* Sections */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {sections.map((section, idx) => {
                     const isExpanded = expandedSet.has(idx);
@@ -193,89 +155,64 @@ export default function ExplanationSections({ sections }: ExplanationSectionsPro
                             key={`${section.type}-${idx}`}
                             className={`${sectionStyle} animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
                             style={{
-                                borderRadius: "8px",
+                                borderRadius: "var(--radius-md)",
                                 overflow: "hidden",
-                                transition: "all 0.2s ease",
+                                transition: "all 0.25s ease",
                             }}
                         >
-                            {/* Header */}
-                            <button
-                                onClick={() => toggle(idx)}
-                                className="section-header-btn"
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span style={{ fontSize: "0.85rem" }}>{SECTION_TYPE_ICONS[section.type] || "📄"}</span>
-                                    <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{section.title}</span>
+                            <button onClick={() => toggle(idx)} className="section-header-btn">
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                    <span style={{ fontSize: "0.9rem" }}>{SECTION_TYPE_ICONS[section.type] || "📄"}</span>
+                                    <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{section.title}</span>
                                 </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                     <ContributionBadge direction={section.contribution_direction} />
                                     {section.contribution_score != null && !isNaN(section.contribution_score) && (
-                                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--text-muted)" }}>
+                                        <span style={{
+                                            fontFamily: "var(--font-mono)", fontSize: "0.65rem",
+                                            color: "var(--text-dim)",
+                                        }}>
                                             {(section.contribution_score * 100).toFixed(0)}%
                                         </span>
                                     )}
-                                    <span
-                                        style={{
-                                            fontSize: "0.7rem",
-                                            color: "var(--text-muted)",
-                                            transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                            transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                                            display: "inline-block",
-                                        }}
-                                    >
+                                    <span style={{
+                                        fontSize: "0.7rem", color: "var(--text-dim)",
+                                        transition: "transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                                        transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                                        display: "inline-block",
+                                    }}>
                                         ▼
                                     </span>
                                 </div>
                             </button>
 
-                            {/* Collapsible Body */}
-                            <div
-                                className="section-collapsible"
-                                data-expanded={isExpanded ? "true" : "false"}
-                            >
+                            <div className="section-collapsible" data-expanded={isExpanded ? "true" : "false"}>
                                 <div className="section-collapsible-inner">
-                                    <div style={{ padding: "0 14px 14px" }}>
-                                        {/* Temporal evolution mini viz */}
+                                    <div style={{ padding: "0 16px 16px" }}>
                                         {section.type === "TEMPORAL_EVOLUTION" && (
                                             <TemporalMiniViz bullets={section.bullets} />
                                         )}
 
-                                        {/* Standard bullets */}
-                                        <ul
-                                            style={{
-                                                margin: 0,
-                                                padding: "0 0 0 16px",
-                                                listStyleType: "none",
-                                            }}
-                                        >
+                                        <ul style={{ margin: 0, padding: "0 0 0 18px", listStyleType: "none" }}>
                                             {section.bullets
                                                 .filter((b) => {
-                                                    if (section.type === "TEMPORAL_EVOLUTION") {
-                                                        const lower = b.toLowerCase();
-                                                        if (lower.includes("trend") || lower.includes("velocity") || lower.includes("stability")) return false;
-                                                    }
-                                                    return true;
+                                                    if (section.type !== "TEMPORAL_EVOLUTION") return true;
+                                                    const lower = b.toLowerCase();
+                                                    return !lower.includes("trend") && !lower.includes("velocity") && !lower.includes("stability");
                                                 })
                                                 .map((bullet, bIdx) => (
-                                                    <li
-                                                        key={bIdx}
-                                                        style={{
-                                                            fontSize: "0.77rem",
-                                                            color: "var(--text-secondary)",
-                                                            lineHeight: 1.6,
-                                                            padding: "2px 0",
-                                                            position: "relative",
-                                                        }}
-                                                    >
-                                                        <span style={{ position: "absolute", left: "-14px", color: "var(--text-muted)" }}>›</span>
+                                                    <li key={bIdx} style={{
+                                                        fontSize: "0.8rem", color: "var(--text-secondary)",
+                                                        lineHeight: 1.7, padding: "3px 0", position: "relative",
+                                                    }}>
+                                                        <span style={{ position: "absolute", left: "-14px", color: "var(--text-dim)" }}>›</span>
                                                         {bullet}
                                                     </li>
                                                 ))}
                                         </ul>
 
-                                        {/* Counterfactuals */}
                                         {section.counterfactuals && section.counterfactuals.length > 0 && (
-                                            <div style={{ marginTop: "10px" }}>
+                                            <div style={{ marginTop: "12px" }}>
                                                 {section.counterfactuals.map((cf, cfIdx) => (
                                                     <CounterfactualCard key={cfIdx} cf={cf} />
                                                 ))}
