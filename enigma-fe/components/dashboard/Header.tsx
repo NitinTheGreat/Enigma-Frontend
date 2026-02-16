@@ -4,7 +4,10 @@ import type { ConnectionState } from "@/types/dashboard";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface Props { connectionState: ConnectionState; }
+interface Props {
+    connectionState: ConnectionState;
+    onMenuToggle?: () => void;
+}
 
 const STATUS: Record<ConnectionState, { color: string; bg: string; label: string }> = {
     connected: { color: "var(--green-text)", bg: "var(--green-dim)", label: "Live" },
@@ -12,7 +15,7 @@ const STATUS: Record<ConnectionState, { color: string; bg: string; label: string
     reconnecting: { color: "var(--amber-text)", bg: "var(--amber-dim)", label: "Reconnecting" },
 };
 
-export default function Header({ connectionState }: Props) {
+export default function Header({ connectionState, onMenuToggle }: Props) {
     const { theme, toggle } = useTheme();
     const s = STATUS[connectionState];
 
@@ -28,21 +31,30 @@ export default function Header({ connectionState }: Props) {
                 flexShrink: 0,
             }}
         >
-            {/* Left: Logo */}
+            {/* Left: Hamburger + Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {/* Hamburger — hidden on desktop via CSS class */}
+                <button className="hamburger-btn" onClick={onMenuToggle} aria-label="Toggle menu">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+
                 <span style={{
                     fontSize: "0.95rem", fontWeight: 700, letterSpacing: "0.1em",
                     fontFamily: "var(--font-mono)", color: "var(--text-primary)",
                 }}>ENIGMA</span>
-                <span style={{ width: "1px", height: "16px", background: "var(--border)" }} />
-                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 400 }}>
+                <span className="header-subtitle" style={{ width: "1px", height: "16px", background: "var(--border)" }} />
+                <span className="header-subtitle" style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 400 }}>
                     Threat Intelligence
                 </span>
             </div>
 
             {/* Right */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span className="mono" style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                <span className="mono header-date" style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
                     {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </span>
 

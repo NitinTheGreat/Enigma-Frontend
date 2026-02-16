@@ -34,17 +34,33 @@ export default function DashboardPage() {
   const { connectionState, situations, feed, recentlyUpdated, isConnected } = useDashboardWS();
   const { health, latencyMs, lastUpdate } = useHealth();
   const [selId, setSelId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sel = selId ? situations.get(selId) ?? null : null;
   const skeleton = connectionState === "reconnecting" || (connectionState === "connected" && situations.size === 0);
 
+  const handleSelect = (id: string | null) => {
+    setSelId(id);
+    setSidebarOpen(false); // close drawer on mobile after selection
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-page)", transition: "background-color 0.3s ease" }}>
       <ThemeTransition />
-      <Header connectionState={connectionState} />
+      <Header connectionState={connectionState} onMenuToggle={() => setSidebarOpen(v => !v)} />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
-        <Sidebar situations={situations} selectedId={selId} onSelect={setSelId} recentlyUpdated={recentlyUpdated} />
+        {/* Mobile overlay */}
+        <div
+          className={`sidebar-overlay ${sidebarOpen ? "active" : ""}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+
+        {/* Sidebar with mobile drawer support */}
+        <div className={`sidebar-mobile ${sidebarOpen ? "open" : ""}`}
+          style={{ width: "280px", minWidth: "280px", height: "100%", display: "flex", flexDirection: "column" }}>
+          <Sidebar situations={situations} selectedId={selId} onSelect={handleSelect} recentlyUpdated={recentlyUpdated} />
+        </div>
 
         <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", padding: "14px", gap: "10px", minHeight: 0 }}>
           <AnimatePresence mode="wait">
@@ -55,7 +71,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
-                style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, minHeight: 0, overflow: "hidden" }}>
+                style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, minHeight: 0, overflow: "auto" }}>
                 {/* Back button */}
                 <motion.button
                   onClick={() => setSelId(null)}
@@ -73,11 +89,11 @@ export default function DashboardPage() {
                   <span>Back to Overview</span>
                 </motion.button>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "10px", flexShrink: 0 }}>
+                <div className="detail-grid-top">
                   <SituationOverview analysis={sel} />
                   <HypothesesPanel hypotheses={sel.langgraph.hypotheses} dominantId={sel.explanation.dominant_hypothesis_id} />
                 </div>
-                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", minHeight: 0, overflow: "hidden" }}>
+                <div className="detail-grid-bottom">
                   <div style={{ overflowY: "auto", minHeight: 0 }}>
                     <ExplanationSections sections={sel.explanation.sections} />
                   </div>
@@ -90,14 +106,14 @@ export default function DashboardPage() {
               /* ── Skeleton ── */
               <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                <div className="overview-grid-kpi">
                   <Skeleton lines={1} delay={0} /><Skeleton lines={1} delay={0.05} />
                   <Skeleton lines={1} delay={0.1} /><Skeleton lines={1} delay={0.15} />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                <div className="overview-grid-donuts">
                   <Skeleton lines={4} delay={0.2} /><Skeleton lines={4} delay={0.25} /><Skeleton lines={4} delay={0.3} />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "10px", flex: 1 }}>
+                <div className="overview-grid-trend" style={{ flex: 1 }}>
                   <Skeleton lines={3} delay={0.35} /><Skeleton lines={2} delay={0.4} />
                 </div>
               </motion.div>

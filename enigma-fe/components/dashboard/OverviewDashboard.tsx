@@ -244,7 +244,7 @@ export default function OverviewDashboard({ situations, health, feed }: Props) {
             }}>
 
             {/* ── KPI Cards ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", flexShrink: 0 }}>
+            <div className="overview-grid-kpi">
                 <MetricCard icon="🎯" label="Active Situations" value={String(sits.length)}
                     delta={escCount > 0 ? `↑${escCount} escalating` : undefined}
                     spark={evidenceSpark} color="#3b82f6" delay={0} />
@@ -257,7 +257,7 @@ export default function OverviewDashboard({ situations, health, feed }: Props) {
             </div>
 
             {/* ── Donut Charts Row ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", flexShrink: 0 }}>
+            <div className="overview-grid-donuts">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
                     style={cardStyle(0.08)}>
@@ -289,14 +289,16 @@ export default function OverviewDashboard({ situations, health, feed }: Props) {
             </div>
 
             {/* ── Area Chart + Gauge ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "12px", flexShrink: 0 }}>
+            <div className="overview-grid-trend">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}
                     style={{ ...cardStyle(0.22, "#3b82f6"), padding: "20px" }}>
                     <SectionHeader icon="📉" title="Confidence Trend" subtitle={`${confidenceTrend.length} data points`} />
                     {confidenceTrend.length >= 2
-                        ? <AreaChart data={confidenceTrend} labels={confidenceLabels}
-                            width={520} height={170} gradientId="conf-grad" color="#3b82f6" />
+                        ? <div className="chart-area-container">
+                            <AreaChart data={confidenceTrend} labels={confidenceLabels}
+                                width={520} height={170} gradientId="conf-grad" color="#3b82f6" />
+                        </div>
                         : <div style={{
                             display: "flex", flexDirection: "column", alignItems: "center",
                             justifyContent: "center", padding: "40px 0", gap: "8px",
@@ -326,7 +328,7 @@ export default function OverviewDashboard({ situations, health, feed }: Props) {
             </div>
 
             {/* ── Bar Charts ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", flexShrink: 0 }}>
+            <div className="overview-grid-bars">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }}
                     style={cardStyle(0.32, "#8b5cf6")}>

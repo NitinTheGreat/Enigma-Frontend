@@ -38,6 +38,7 @@ export default function Footer({ health, latencyMs, lastUpdate, isConnected }: P
                 padding: "6px 24px", height: "34px",
                 background: "var(--bg-card)", borderTop: "1px solid var(--border)", flexShrink: 0,
             }}
+            className="footer-stats"
         >
             {stats.map((s, i) => (
                 <div key={s.l} style={{ display: "contents" }}>
