@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDashboardWS } from "@/hooks/useDashboardWS";
 import { useHealth } from "@/hooks/useHealth";
 import Header from "@/components/dashboard/Header";
@@ -11,6 +11,7 @@ import ExplanationSections from "@/components/dashboard/ExplanationSections";
 import LiveFeed from "@/components/dashboard/LiveFeed";
 import Footer from "@/components/dashboard/Footer";
 import ThemeTransition from "@/components/dashboard/ThemeTransition";
+import OverviewDashboard from "@/components/dashboard/OverviewDashboard";
 import { motion, AnimatePresence } from "framer-motion";
 
 function Skeleton({ lines = 3, delay = 0 }: { lines?: number; delay?: number }) {
@@ -34,18 +35,12 @@ export default function DashboardPage() {
   const { health, latencyMs, lastUpdate } = useHealth();
   const [selId, setSelId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!selId && situations.size > 0) setSelId(Array.from(situations.keys())[0]);
-  }, [situations, selId]);
-
   const sel = selId ? situations.get(selId) ?? null : null;
   const skeleton = connectionState === "reconnecting" || (connectionState === "connected" && situations.size === 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-page)", transition: "background-color 0.3s ease" }}>
-      {/* Ripple overlay for theme transitions */}
       <ThemeTransition />
-
       <Header connectionState={connectionState} />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
@@ -54,18 +49,34 @@ export default function DashboardPage() {
         <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", padding: "14px", gap: "10px", minHeight: 0 }}>
           <AnimatePresence mode="wait">
             {sel ? (
-              <motion.div key={sel.situation.situation_id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+              /* ── Detail View ── */
+              <motion.div key={`detail-${sel.situation.situation_id}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
                 style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, minHeight: 0, overflow: "hidden" }}>
-                {/* Top: Overview + Hypotheses */}
+                {/* Back button */}
+                <motion.button
+                  onClick={() => setSelId(null)}
+                  whileHover={{ x: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "5px",
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--text-muted)", fontSize: "0.72rem", padding: "0",
+                    fontFamily: "inherit", flexShrink: 0,
+                  }}>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path d="m15 19-7-7 7-7" />
+                  </svg>
+                  <span>Back to Overview</span>
+                </motion.button>
+
                 <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "10px", flexShrink: 0 }}>
                   <SituationOverview analysis={sel} />
                   <HypothesesPanel hypotheses={sel.langgraph.hypotheses} dominantId={sel.explanation.dominant_hypothesis_id} />
                 </div>
-                {/* Bottom: Explanation + Live Feed */}
                 <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", minHeight: 0, overflow: "hidden" }}>
                   <div style={{ overflowY: "auto", minHeight: 0 }}>
                     <ExplanationSections sections={sel.explanation.sections} />
@@ -76,17 +87,23 @@ export default function DashboardPage() {
                 </div>
               </motion.div>
             ) : skeleton ? (
+              /* ── Skeleton ── */
               <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "10px" }}>
-                  <Skeleton lines={5} delay={0} /><Skeleton lines={4} delay={0.1} />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                  <Skeleton lines={1} delay={0} /><Skeleton lines={1} delay={0.05} />
+                  <Skeleton lines={1} delay={0.1} /><Skeleton lines={1} delay={0.15} />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", flex: 1 }}>
-                  <Skeleton lines={3} delay={0.2} /><Skeleton lines={2} delay={0.3} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                  <Skeleton lines={4} delay={0.2} /><Skeleton lines={4} delay={0.25} /><Skeleton lines={4} delay={0.3} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "10px", flex: 1 }}>
+                  <Skeleton lines={3} delay={0.35} /><Skeleton lines={2} delay={0.4} />
                 </div>
               </motion.div>
-            ) : (
-              <motion.div key="empty"
+            ) : !isConnected ? (
+              /* ── Connecting ── */
+              <motion.div key="connecting"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
@@ -107,19 +124,15 @@ export default function DashboardPage() {
                   </svg>
                 </motion.div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "3px", color: "var(--text-primary)" }}>
-                    {isConnected ? "Monitoring Active" : "Connecting…"}
-                  </div>
+                  <div style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "3px", color: "var(--text-primary)" }}>Connecting…</div>
                   <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", maxWidth: "280px", lineHeight: 1.5 }}>
-                    {isConnected ? "Waiting for threat analysis results." : "Establishing connection to backend…"}
+                    Establishing connection to backend…
                   </div>
                 </div>
-                {feed.length > 0 && (
-                  <div style={{ width: "100%", maxWidth: "560px", height: "200px", marginTop: "6px" }}>
-                    <LiveFeed feed={feed} />
-                  </div>
-                )}
               </motion.div>
+            ) : (
+              /* ── Overview Dashboard (default) ── */
+              <OverviewDashboard key="overview" situations={situations} health={health} feed={feed} />
             )}
           </AnimatePresence>
         </main>

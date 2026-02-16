@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface Props {
     situations: Map<string, SituationAnalysis>;
     selectedId: string | null;
-    onSelect: (id: string) => void;
+    onSelect: (id: string | null) => void;
     recentlyUpdated: Set<string>;
 }
 
@@ -91,6 +91,28 @@ export default function Sidebar({ situations, selectedId, onSelect, recentlyUpda
                         className="mono" style={{ fontSize: "0.8rem", fontWeight: 700 }}>{sorted.length}</motion.span>
                 </div>
                 {esc > 0 && <span className="badge badge-red">{esc} escalating</span>}
+            </div>
+
+            {/* Overview nav */}
+            <div style={{ padding: "0 10px 4px" }}>
+                <motion.button
+                    onClick={() => onSelect(null)}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: "8px",
+                        padding: "8px 10px", borderRadius: "var(--radius-md)", cursor: "pointer",
+                        border: "1px solid var(--border)", fontFamily: "inherit",
+                        background: selectedId === null ? "var(--bg-active)" : "var(--bg-card)",
+                        color: selectedId === null ? "var(--blue-text)" : "var(--text-secondary)",
+                        fontSize: "0.72rem", fontWeight: 600,
+                        transition: "all 0.15s ease",
+                    }}>
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                    Overview Dashboard
+                </motion.button>
             </div>
 
             {/* Search + filters */}
