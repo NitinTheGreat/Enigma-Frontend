@@ -58,7 +58,7 @@
 }
 
 /* ── Dark Theme — Strictly Gray ── */
-.dark {
+:root.dark {
   --bg-page: #1a1a1a;
   --bg-card: #262626;
   --bg-sidebar: #212121;

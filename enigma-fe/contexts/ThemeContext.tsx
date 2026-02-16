@@ -67,11 +67,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (rippleTimeout.current) clearTimeout(rippleTimeout.current);
 
         // Change theme after small delay for ripple to start
-        rippleTimeout.current = setTimeout(() => {
+        setTimeout(() => {
             setTheme(prev => prev === "dark" ? "light" : "dark");
         }, 50);
 
-        // End ripple after animation
+        // End ripple after animation completes
         rippleTimeout.current = setTimeout(() => {
             setRipple(prev => ({ ...prev, active: false }));
         }, 800);
