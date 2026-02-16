@@ -2,304 +2,182 @@
 
 import { useState, useMemo } from "react";
 import type { SituationAnalysis } from "@/types/dashboard";
-import { SIGNAL_TYPE_COLORS, SIGNAL_TYPE_ICONS } from "@/types/dashboard";
+import { motion, AnimatePresence } from "framer-motion";
 
-interface SidebarProps {
+interface Props {
     situations: Map<string, SituationAnalysis>;
     selectedId: string | null;
     onSelect: (id: string) => void;
     recentlyUpdated: Set<string>;
 }
 
-function timeAgo(dateStr: string | undefined | null): string {
-    if (!dateStr) return "—";
-    const parsed = new Date(dateStr).getTime();
-    if (isNaN(parsed)) return "—";
-    const diff = Date.now() - parsed;
-    if (diff < 0) return "just now";
-    const seconds = Math.floor(diff / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+function timeAgo(d: string | undefined | null): string {
+    if (!d) return "—";
+    const t = new Date(d).getTime();
+    if (isNaN(t)) return "—";
+    const diff = Date.now() - t;
+    if (diff < 0) return "now";
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`;
+    return `${Math.floor(h / 24)}d`;
 }
 
-function clampPercent(val: number): string {
-    if (isNaN(val)) return "—";
-    return `${Math.round(Math.max(0, Math.min(1, val)) * 100)}%`;
+function riskColor(v: number): string {
+    if (isNaN(v)) return "var(--text-muted)";
+    if (v > 0.8) return "var(--red-text)";
+    if (v > 0.5) return "var(--amber-text)";
+    return "var(--green-text)";
 }
 
-function anomalyColor(val: number): string {
-    if (isNaN(val)) return "var(--text-muted)";
-    if (val > 0.8) return "var(--red)";
-    if (val > 0.5) return "var(--amber)";
-    return "var(--green)";
-}
+type Filter = "all" | "escalating" | "high";
 
-type FilterType = "all" | "escalating" | "high-anomaly";
+const itemVariants = {
+    hidden: { opacity: 0, x: -16 },
+    visible: (i: number) => ({
+        opacity: 1, x: 0,
+        transition: { delay: i * 0.04, duration: 0.3, ease: "easeOut" as const },
+    }),
+    exit: { opacity: 0, x: -8, transition: { duration: 0.15 } },
+};
 
-export default function Sidebar({ situations, selectedId, onSelect, recentlyUpdated }: SidebarProps) {
+export default function Sidebar({ situations, selectedId, onSelect, recentlyUpdated }: Props) {
     const [search, setSearch] = useState("");
-    const [filter, setFilter] = useState<FilterType>("all");
+    const [filter, setFilter] = useState<Filter>("all");
 
-    const sortedSituations = useMemo(() => {
-        return Array.from(situations.values()).sort((a, b) => {
-            const tA = new Date(b.situation.last_activity).getTime();
-            const tB = new Date(a.situation.last_activity).getTime();
-            if (isNaN(tA) && isNaN(tB)) return 0;
-            if (isNaN(tA)) return -1;
-            if (isNaN(tB)) return 1;
-            return tA - tB;
-        });
-    }, [situations]);
+    const sorted = useMemo(() => Array.from(situations.values()).sort((a, b) => {
+        const ta = new Date(b.situation.last_activity).getTime();
+        const tb = new Date(a.situation.last_activity).getTime();
+        return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb);
+    }), [situations]);
 
-    const filteredSituations = useMemo(() => {
-        let list = sortedSituations;
-        if (filter === "escalating") {
-            list = list.filter((a) => a.reasoning.trend === "escalating");
-        } else if (filter === "high-anomaly") {
-            list = list.filter((a) => a.situation.max_anomaly > 0.5);
-        }
+    const filtered = useMemo(() => {
+        let list = sorted;
+        if (filter === "escalating") list = list.filter(a => a.reasoning.trend === "escalating");
+        else if (filter === "high") list = list.filter(a => a.situation.max_anomaly > 0.5);
         if (search.trim()) {
-            const q = search.toLowerCase().trim();
-            list = list.filter((a) => {
-                const sit = a.situation;
-                return (
-                    sit.situation_id.toLowerCase().includes(q) ||
-                    sit.entities.some((e) => e.toLowerCase().includes(q)) ||
-                    sit.signal_types.some((t) => t.toLowerCase().includes(q))
-                );
+            const q = search.toLowerCase();
+            list = list.filter(a => {
+                const s = a.situation;
+                return s.situation_id.toLowerCase().includes(q) ||
+                    s.entities.some(e => e.toLowerCase().includes(q)) ||
+                    s.signal_types.some(t => t.toLowerCase().includes(q));
             });
         }
         return list;
-    }, [sortedSituations, search, filter]);
+    }, [sorted, search, filter]);
 
-    const escalatingCount = sortedSituations.filter((s) => s.reasoning.trend === "escalating").length;
-    const totalSignals = sortedSituations.reduce((sum, s) => sum + (s.situation.evidence_count || 0), 0);
-    const allTypes = new Set(sortedSituations.flatMap((s) => s.situation.signal_types));
+    const esc = sorted.filter(s => s.reasoning.trend === "escalating").length;
 
     return (
-        <aside
+        <motion.aside
+            initial={{ x: -280, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
             style={{
-                width: "340px",
-                minWidth: "340px",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                borderRight: "1px solid var(--border-default)",
-                background: "rgba(6, 10, 20, 0.6)",
-                overflow: "hidden",
+                width: "280px", minWidth: "280px", height: "100%",
+                display: "flex", flexDirection: "column",
+                borderRight: "1px solid var(--border)", background: "var(--bg-sidebar)",
             }}
         >
-            {/* ── Header ── */}
-            <div style={{ padding: "20px 20px 16px" }}>
-                <div style={{
-                    fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.12em",
-                    textTransform: "uppercase", color: "var(--text-dim)", marginBottom: "8px",
-                }}>
-                    Active Situations
+            {/* Header */}
+            <div style={{ padding: "14px 14px 10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "2px" }}>
+                    <span className="label">Situations</span>
+                    <motion.span key={sorted.length} initial={{ scale: 1.4, color: "var(--blue-text)" }} animate={{ scale: 1, color: "var(--text-primary)" }} transition={{ duration: 0.3 }}
+                        className="mono" style={{ fontSize: "0.8rem", fontWeight: 700 }}>{sorted.length}</motion.span>
                 </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-                    <span
-                        className="animate-count-up"
-                        style={{
-                            fontSize: "2.2rem", fontWeight: 800, fontFamily: "var(--font-mono)",
-                            color: "var(--text-bright)",
-                            background: "linear-gradient(135deg, var(--text-bright), var(--blue-light))",
-                            WebkitBackgroundClip: "text",
-                            WebkitTextFillColor: "transparent",
-                        }}
-                    >
-                        {sortedSituations.length}
-                    </span>
-                    {escalatingCount > 0 && (
-                        <span className="badge badge-red" style={{ fontSize: "0.55rem" }}>
-                            ▲ {escalatingCount} escalating
-                        </span>
-                    )}
-                </div>
+                {esc > 0 && <span className="badge badge-red">{esc} escalating</span>}
             </div>
 
-            {/* ── Search & Filter ── */}
-            <div style={{ padding: "0 16px 12px", borderBottom: "1px solid var(--border-default)" }}>
-                <div style={{ position: "relative", marginBottom: "10px" }}>
-                    <span style={{
-                        position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)",
-                        fontSize: "0.75rem", color: "var(--text-dim)", pointerEvents: "none",
-                    }}>
-                        ⌕
-                    </span>
-                    <input
-                        className="search-input"
-                        type="text"
-                        placeholder="Search by ID, entity, or type…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+            {/* Search + filters */}
+            <div style={{ padding: "0 10px 8px" }}>
+                <div style={{ position: "relative", marginBottom: "6px" }}>
+                    <svg style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", width: "13px", height: "13px", color: "var(--text-muted)" }}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                    </svg>
+                    <input className="search-input" type="text" placeholder="Search…"
+                        value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                    {[
-                        { key: "all" as FilterType, label: `All (${sortedSituations.length})` },
-                        { key: "escalating" as FilterType, label: `▲ Escalating (${escalatingCount})` },
-                        { key: "high-anomaly" as FilterType, label: "⚠ High Anomaly" },
-                    ].map((f) => (
-                        <button
-                            key={f.key}
-                            className={`filter-pill ${filter === f.key ? "filter-pill-active" : ""}`}
-                            onClick={() => setFilter(f.key)}
-                        >
-                            {f.label}
-                        </button>
+                <div style={{ display: "flex", gap: "4px" }}>
+                    {([["all", "All"], ["escalating", "Escalating"], ["high", "High Risk"]] as [Filter, string][]).map(([k, l]) => (
+                        <motion.button key={k} whileTap={{ scale: 0.95 }}
+                            className={`pill ${filter === k ? "pill-active" : ""}`}
+                            onClick={() => setFilter(k)}>{l}</motion.button>
                     ))}
                 </div>
             </div>
 
-            {/* ── Situations list ── */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-                {filteredSituations.length === 0 && (
-                    <div style={{
-                        padding: "40px 16px", textAlign: "center", color: "var(--text-dim)", fontSize: "0.8rem",
-                    }}>
-                        {search || filter !== "all" ? (
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                                <span style={{ fontSize: "1.3rem", opacity: 0.4 }}>🔍</span>
-                                <span>No situations match filters</span>
-                                <button
-                                    onClick={() => { setSearch(""); setFilter("all"); }}
-                                    className="mini-btn"
-                                >
-                                    Clear filters
-                                </button>
-                            </div>
-                        ) : (
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                                <span style={{ fontSize: "1.3rem", opacity: 0.4 }}>📡</span>
-                                <span>Waiting for threat data…</span>
-                            </div>
-                        )}
-                    </div>
-                )}
+            <div style={{ height: "1px", background: "var(--border)", margin: "0 10px" }} />
 
-                {filteredSituations.map((analysis, idx) => {
-                    const sit = analysis.situation;
-                    const isSelected = selectedId === sit.situation_id;
-                    const isRecent = recentlyUpdated.has(sit.situation_id);
-                    const trendIcon = analysis.reasoning.trend === "escalating" ? "▲" : analysis.reasoning.trend === "deescalating" ? "▼" : "";
-
-                    return (
-                        <div
-                            key={sit.situation_id}
-                            onClick={() => onSelect(sit.situation_id)}
-                            className={`card-interactive animate-fade-in stagger-${Math.min(idx + 1, 5)} ${isRecent ? "animate-border-pulse" : ""}`}
-                            style={{
-                                padding: "14px 16px",
-                                marginBottom: "8px",
-                                borderRadius: "var(--radius-md)",
-                                background: isSelected
-                                    ? "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.06))"
-                                    : "rgba(255,255,255,0.02)",
-                                border: `1px solid ${isSelected ? "rgba(59,130,246,0.3)" : isRecent ? "var(--blue)" : "var(--border-default)"}`,
-                                ...(isSelected ? { boxShadow: "var(--shadow-glow-blue)" } : {}),
-                            }}
-                        >
-                            {/* Row: ID + anomaly */}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                    <span style={{
-                                        fontFamily: "var(--font-mono)", fontSize: "0.82rem", fontWeight: 700,
-                                        color: isSelected ? "var(--blue-light)" : "var(--text-bright)",
-                                    }} title={sit.situation_id}>
+            {/* List */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px" }}>
+                <AnimatePresence mode="popLayout">
+                    {filtered.length === 0 && (
+                        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            style={{ padding: "24px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.78rem" }}>
+                            {search || filter !== "all"
+                                ? <>No matches. <button onClick={() => { setSearch(""); setFilter("all"); }} style={{ background: "none", border: "none", color: "var(--text-link)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline", padding: 0, fontFamily: "inherit" }}>Clear</button></>
+                                : "Waiting for data…"}
+                        </motion.div>
+                    )}
+                    {filtered.map((a, i) => {
+                        const sit = a.situation;
+                        const active = selectedId === sit.situation_id;
+                        const fresh = recentlyUpdated.has(sit.situation_id);
+                        return (
+                            <motion.div key={sit.situation_id}
+                                variants={itemVariants} custom={i}
+                                initial="hidden" animate="visible" exit="exit"
+                                layout layoutId={sit.situation_id}
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.98 }}
+                                className={`sidebar-item ${active ? "sidebar-item-active" : ""}`}
+                                onClick={() => onSelect(sit.situation_id)}
+                                style={{ marginBottom: "2px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                                    <span className="mono" style={{ fontSize: "0.76rem", fontWeight: 600, color: active ? "var(--blue-text)" : "var(--text-primary)" }}
+                                        title={sit.situation_id}>
                                         {sit.situation_id.substring(0, 8)}
                                     </span>
-                                    {trendIcon && (
-                                        <span style={{
-                                            fontSize: "0.55rem",
-                                            color: analysis.reasoning.trend === "escalating" ? "var(--red)" : "var(--green)",
-                                        }}>
-                                            {trendIcon}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                        {fresh && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--blue)" }} />}
+                                        <span className="mono" style={{ fontSize: "0.68rem", fontWeight: 600, color: riskColor(sit.max_anomaly) }}>
+                                            {isNaN(sit.max_anomaly) ? "—" : `${Math.round(sit.max_anomaly * 100)}%`}
                                         </span>
-                                    )}
+                                    </div>
                                 </div>
-                                <span style={{
-                                    fontFamily: "var(--font-mono)", fontSize: "0.72rem", fontWeight: 700,
-                                    color: anomalyColor(sit.max_anomaly),
-                                    padding: "2px 8px",
-                                    borderRadius: "var(--radius-sm)",
-                                    background: `${anomalyColor(sit.max_anomaly)}15`,
-                                }}>
-                                    {clampPercent(sit.max_anomaly)}
-                                </span>
-                            </div>
-
-                            {/* Signal tags */}
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "10px" }}>
-                                {sit.signal_types.slice(0, 4).map((type) => (
-                                    <span
-                                        key={type}
-                                        className="signal-tag"
-                                        style={{
-                                            background: `${SIGNAL_TYPE_COLORS[type] || "var(--text-muted)"}15`,
-                                            color: SIGNAL_TYPE_COLORS[type] || "var(--text-muted)",
-                                            border: `1px solid ${SIGNAL_TYPE_COLORS[type] || "var(--text-muted)"}25`,
-                                        }}
-                                    >
-                                        {SIGNAL_TYPE_ICONS[type] || "•"} {type}
-                                    </span>
-                                ))}
-                                {sit.signal_types.length > 4 && (
-                                    <span style={{ fontSize: "0.6rem", color: "var(--text-dim)", alignSelf: "center" }}>
-                                        +{sit.signal_types.length - 4}
-                                    </span>
-                                )}
-                            </div>
-
-                            {/* Bottom: entity + meta */}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                                    {sit.entities[0] || "unknown"}
-                                </span>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span className="badge badge-blue" style={{ fontSize: "0.55rem", padding: "2px 7px" }}>
-                                        {sit.evidence_count || 0}
-                                    </span>
-                                    <span style={{ fontSize: "0.6rem", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                                        {timeAgo(sit.last_activity)}
-                                    </span>
+                                <div style={{ display: "flex", gap: "3px", marginBottom: "4px", flexWrap: "wrap" }}>
+                                    {sit.signal_types.slice(0, 3).map(t => <span key={t} className="signal-tag">{t}</span>)}
+                                    {sit.signal_types.length > 3 && <span style={{ fontSize: "0.58rem", color: "var(--text-muted)", alignSelf: "center" }}>+{sit.signal_types.length - 3}</span>}
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: "0.68rem", color: "var(--text-secondary)" }}>{sit.entities[0] || "—"}</span>
+                                    <span className="mono" style={{ fontSize: "0.58rem", color: "var(--text-muted)" }}>{timeAgo(sit.last_activity)}</span>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </AnimatePresence>
             </div>
 
-            {/* ── Stats footer ── */}
-            <div
-                style={{
-                    padding: "14px 20px",
-                    borderTop: "1px solid var(--border-default)",
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: "8px",
-                    background: "rgba(6, 10, 20, 0.4)",
-                }}
-            >
+            {/* Stats */}
+            <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-around" }}>
                 {[
-                    { label: "Signals", value: totalSignals, color: "var(--text-bright)" },
-                    { label: "Active", value: sortedSituations.length, color: "var(--amber)" },
-                    { label: "Types", value: allTypes.size, color: "var(--purple)" },
-                ].map((s) => (
-                    <div key={s.label} className="metric-cell">
-                        <div style={{ fontSize: "0.55rem", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>
-                            {s.label}
-                        </div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 700, color: s.color }}>
-                            {s.value}
-                        </div>
+                    { l: "Signals", v: sorted.reduce((s, a) => s + (a.situation.evidence_count || 0), 0) },
+                    { l: "Active", v: sorted.length },
+                    { l: "Types", v: new Set(sorted.flatMap(s => s.situation.signal_types)).size },
+                ].map(s => (
+                    <div key={s.l} style={{ textAlign: "center" }}>
+                        <div className="label" style={{ fontSize: "0.5rem", marginBottom: "1px" }}>{s.l}</div>
+                        <div className="mono" style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)" }}>{s.v}</div>
                     </div>
                 ))}
             </div>
-        </aside>
+        </motion.aside>
     );
 }

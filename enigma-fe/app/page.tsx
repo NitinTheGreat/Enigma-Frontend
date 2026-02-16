@@ -10,174 +10,122 @@ import HypothesesPanel from "@/components/dashboard/HypothesesPanel";
 import ExplanationSections from "@/components/dashboard/ExplanationSections";
 import LiveFeed from "@/components/dashboard/LiveFeed";
 import Footer from "@/components/dashboard/Footer";
+import ThemeTransition from "@/components/dashboard/ThemeTransition";
+import { motion, AnimatePresence } from "framer-motion";
 
-function SkeletonCard({ lines = 3, height }: { lines?: number; height?: string }) {
+function Skeleton({ lines = 3, delay = 0 }: { lines?: number; delay?: number }) {
   return (
-    <div className="glass-card" style={{ padding: "24px", height }}>
-      <div className="skeleton skeleton-line" style={{ width: "35%", height: "16px", marginBottom: "20px" }} />
+    <motion.div className="card"
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3 }}
+      style={{ padding: "18px" }}>
+      <div className="skeleton skeleton-line" style={{ width: "28%", height: "13px", marginBottom: "14px" }} />
       {Array.from({ length: lines }).map((_, i) => (
-        <div
-          key={i}
-          className={`skeleton skeleton-line ${i === lines - 1 ? "skeleton-line-short" : "skeleton-line-medium"}`}
-          style={{ animationDelay: `${i * 0.15}s` }}
-        />
+        <div key={i} className={`skeleton skeleton-line ${i === lines - 1 ? "skeleton-line-short" : "skeleton-line-medium"}`}
+          style={{ animationDelay: `${i * 0.15}s` }} />
       ))}
-    </div>
+    </motion.div>
   );
 }
 
 export default function DashboardPage() {
-  const {
-    connectionState,
-    situations,
-    feed,
-    recentlyUpdated,
-    isConnected,
-  } = useDashboardWS();
-
+  const { connectionState, situations, feed, recentlyUpdated, isConnected } = useDashboardWS();
   const { health, latencyMs, lastUpdate } = useHealth();
+  const [selId, setSelId] = useState<string | null>(null);
 
-  const [selectedSituationId, setSelectedSituationId] = useState<string | null>(null);
-
-  // Auto-select best situation
   useEffect(() => {
-    if (!selectedSituationId && situations.size > 0) {
-      const firstId = Array.from(situations.keys())[0];
-      setSelectedSituationId(firstId);
-    }
-  }, [situations, selectedSituationId]);
+    if (!selId && situations.size > 0) setSelId(Array.from(situations.keys())[0]);
+  }, [situations, selId]);
 
-  const selectedAnalysis = selectedSituationId
-    ? situations.get(selectedSituationId) ?? null
-    : null;
-
-  const showSkeleton = connectionState === "reconnecting" || (connectionState === "connected" && situations.size === 0);
+  const sel = selId ? situations.get(selId) ?? null : null;
+  const skeleton = connectionState === "reconnecting" || (connectionState === "connected" && situations.size === 0);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        overflow: "hidden",
-        background: "var(--bg-primary)",
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-page)", transition: "background-color 0.3s ease" }}>
+      {/* Ripple overlay for theme transitions */}
+      <ThemeTransition />
+
       <Header connectionState={connectionState} />
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <Sidebar
-          situations={situations}
-          selectedId={selectedSituationId}
-          onSelect={setSelectedSituationId}
-          recentlyUpdated={recentlyUpdated}
-        />
+      <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
+        <Sidebar situations={situations} selectedId={selId} onSelect={setSelId} recentlyUpdated={recentlyUpdated} />
 
-        <main
-          style={{
-            flex: 1,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            padding: "20px",
-            gap: "16px",
-          }}
-        >
-          {selectedAnalysis ? (
-            <>
-              {/* Top: Overview + Hypotheses side by side */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1.1fr 0.9fr",
-                gap: "16px",
-                minHeight: 0,
-              }}>
-                <SituationOverview analysis={selectedAnalysis} />
-                <HypothesesPanel
-                  hypotheses={selectedAnalysis.langgraph.hypotheses}
-                  dominantId={selectedAnalysis.explanation.dominant_hypothesis_id}
-                />
-              </div>
-
-              {/* Middle: Explanation + Live Feed side-by-side */}
-              <div style={{
-                flex: 1,
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-                minHeight: 0,
-                overflow: "hidden",
-              }}>
-                <div style={{ overflowY: "auto" }}>
-                  <ExplanationSections sections={selectedAnalysis.explanation.sections} />
+        <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", padding: "14px", gap: "10px", minHeight: 0 }}>
+          <AnimatePresence mode="wait">
+            {sel ? (
+              <motion.div key={sel.situation.situation_id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, minHeight: 0, overflow: "hidden" }}>
+                {/* Top: Overview + Hypotheses */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "10px", flexShrink: 0 }}>
+                  <SituationOverview analysis={sel} />
+                  <HypothesesPanel hypotheses={sel.langgraph.hypotheses} dominantId={sel.explanation.dominant_hypothesis_id} />
                 </div>
-                <LiveFeed feed={feed} />
-              </div>
-            </>
-          ) : showSkeleton ? (
-            <>
-              <div style={{
-                display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "16px",
-              }}>
-                <SkeletonCard lines={5} />
-                <SkeletonCard lines={4} />
-              </div>
-              <div style={{
-                display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", flex: 1,
-              }}>
-                <SkeletonCard lines={3} />
-                <SkeletonCard lines={2} />
-              </div>
-            </>
-          ) : (
-            /* Empty state */
-            <div style={{
-              flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", gap: "20px",
-            }}>
-              <div style={{
-                width: "90px", height: "90px", borderRadius: "50%",
-                background: "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1))",
-                border: "1px solid rgba(59,130,246,0.15)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "2.2rem",
-                boxShadow: "var(--shadow-glow-blue)",
-              }} className="animate-pulse-glow">
-                🛡️
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{
-                  fontSize: "1.2rem", fontWeight: 700,
-                  color: "var(--text-primary)", marginBottom: "8px",
-                }}>
-                  {isConnected ? "Monitoring Active" : "Connecting…"}
+                {/* Bottom: Explanation + Live Feed */}
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", minHeight: 0, overflow: "hidden" }}>
+                  <div style={{ overflowY: "auto", minHeight: 0 }}>
+                    <ExplanationSections sections={sel.explanation.sections} />
+                  </div>
+                  <div style={{ minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    <LiveFeed feed={feed} />
+                  </div>
                 </div>
-                <div style={{
-                  fontSize: "0.85rem", color: "var(--text-muted)",
-                  maxWidth: "360px", lineHeight: 1.6,
-                }}>
-                  {isConnected
-                    ? "Waiting for the AI reasoning engine to detect and analyze threats. Results will appear here in real time."
-                    : "Establishing secure connection to the threat analysis backend…"}
+              </motion.div>
+            ) : skeleton ? (
+              <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "10px" }}>
+                  <Skeleton lines={5} delay={0} /><Skeleton lines={4} delay={0.1} />
                 </div>
-              </div>
-
-              {feed.length > 0 && (
-                <div style={{ width: "100%", maxWidth: "700px", height: "260px", marginTop: "12px" }}>
-                  <LiveFeed feed={feed} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", flex: 1 }}>
+                  <Skeleton lines={3} delay={0.2} /><Skeleton lines={2} delay={0.3} />
                 </div>
-              )}
-            </div>
-          )}
+              </motion.div>
+            ) : (
+              <motion.div key="empty"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "14px" }}>
+                <motion.div
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                  style={{
+                    width: "56px", height: "56px", borderRadius: "50%",
+                    background: "var(--bg-muted)", border: "1px solid var(--border)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                  <svg style={{ width: "22px", height: "22px", color: "var(--text-muted)" }}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                    <path d="M12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </motion.div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "3px", color: "var(--text-primary)" }}>
+                    {isConnected ? "Monitoring Active" : "Connecting…"}
+                  </div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", maxWidth: "280px", lineHeight: 1.5 }}>
+                    {isConnected ? "Waiting for threat analysis results." : "Establishing connection to backend…"}
+                  </div>
+                </div>
+                {feed.length > 0 && (
+                  <div style={{ width: "100%", maxWidth: "560px", height: "200px", marginTop: "6px" }}>
+                    <LiveFeed feed={feed} />
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
 
-      <Footer
-        health={health}
-        latencyMs={latencyMs}
-        lastUpdate={lastUpdate}
-        isConnected={isConnected}
-      />
+      <Footer health={health} latencyMs={latencyMs} lastUpdate={lastUpdate} isConnected={isConnected} />
     </div>
   );
 }

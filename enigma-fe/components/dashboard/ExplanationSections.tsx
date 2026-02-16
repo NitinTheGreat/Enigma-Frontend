@@ -2,229 +2,155 @@
 
 import { useState } from "react";
 import type { ExplanationSection as SectionType, Counterfactual } from "@/types/dashboard";
-import { SECTION_TYPE_STYLES, SECTION_TYPE_ICONS } from "@/types/dashboard";
+import { SECTION_TYPE_STYLES } from "@/types/dashboard";
+import { motion, AnimatePresence } from "framer-motion";
 
-interface ExplanationSectionsProps {
-    sections: SectionType[];
+interface Props { sections: SectionType[]; }
+
+const ICONS: Record<string, string> = {
+    SUMMARY: "S", SUPPORTING_EVIDENCE: "+", CONTRADICTING_EVIDENCE: "−",
+    WHY_UNKNOWN: "?", CONFIDENCE_FACTORS: "C", WHAT_WOULD_CHANGE_MIND: "~",
+    COUNTERFACTUALS: "CF", TEMPORAL_EVOLUTION: "T",
+};
+
+function ContribBadge({ dir }: { dir: string | null }) {
+    if (!dir) return null;
+    const c = dir === "SUPPORTING" ? { l: "Supporting", c: "var(--green-text)" }
+        : dir === "OPPOSING" ? { l: "Opposing", c: "var(--red-text)" }
+            : { l: "Neutral", c: "var(--text-muted)" };
+    return <span style={{ fontSize: "0.6rem", color: c.c, fontWeight: 600 }}>{c.l}</span>;
 }
 
-function ContributionBadge({ direction }: { direction: string | null }) {
-    if (!direction) return null;
-    if (direction === "SUPPORTING")
-        return <span style={{ fontSize: "0.6rem", color: "var(--green)", fontWeight: 600 }}>↑ SUPPORT</span>;
-    if (direction === "OPPOSING")
-        return <span style={{ fontSize: "0.6rem", color: "var(--red)", fontWeight: 600 }}>↓ OPPOSE</span>;
-    return <span style={{ fontSize: "0.6rem", color: "var(--text-dim)", fontWeight: 600 }}>— NEUTRAL</span>;
-}
-
-function CounterfactualCard({ cf }: { cf: Counterfactual }) {
-    const delta = isNaN(cf.confidence_delta) ? 0 : cf.confidence_delta;
-    const isPositive = delta > 0;
+function CFCard({ cf, index }: { cf: Counterfactual; index: number }) {
+    const d = isNaN(cf.confidence_delta) ? 0 : cf.confidence_delta;
+    const pos = d > 0;
     return (
-        <div
+        <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            whileHover={{ scale: 1.01, borderColor: "var(--border-hover)" }}
             style={{
-                padding: "12px 14px",
-                background: "var(--purple-surface)",
-                border: "1px solid rgba(139, 92, 246, 0.12)",
-                borderRadius: "var(--radius-md)",
-                marginBottom: "8px",
-                transition: "all 0.25s ease",
-            }}
-            onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.background = "rgba(139, 92, 246, 0.1)";
-                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.25)";
-                (e.currentTarget as HTMLDivElement).style.transform = "translateX(3px)";
-            }}
-            onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.background = "var(--purple-surface)";
-                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(139, 92, 246, 0.12)";
-                (e.currentTarget as HTMLDivElement).style.transform = "translateX(0)";
-            }}
-        >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "14px" }}>
+                padding: "9px 11px", background: "var(--purple-dim)",
+                border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
+                marginBottom: "4px", cursor: "default",
+            }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
                 <div style={{ flex: 1 }}>
-                    <div style={{ marginBottom: "5px" }}>
-                        <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--amber)", marginRight: "6px", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>IF</span>
-                        <span style={{ fontSize: "0.78rem", color: "var(--amber-light)" }}>{cf.missing_condition}</span>
+                    <div style={{ marginBottom: "2px" }}>
+                        <span className="mono" style={{ fontSize: "0.58rem", fontWeight: 700, color: "var(--amber-text)", marginRight: "5px" }}>IF</span>
+                        <span style={{ fontSize: "0.74rem", color: "var(--text-secondary)" }}>{cf.missing_condition}</span>
                     </div>
                     <div>
-                        <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--text-dim)", marginRight: "6px", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>THEN</span>
-                        <span style={{ fontSize: "0.78rem", color: "var(--text-primary)" }}>{cf.expected_effect}</span>
+                        <span className="mono" style={{ fontSize: "0.58rem", fontWeight: 700, color: "var(--text-muted)", marginRight: "5px" }}>THEN</span>
+                        <span style={{ fontSize: "0.74rem", color: "var(--text-primary)" }}>{cf.expected_effect}</span>
                     </div>
                 </div>
-                <div style={{
-                    padding: "4px 10px",
-                    borderRadius: "var(--radius-sm)",
-                    background: isPositive ? "var(--green-surface)" : "var(--red-surface)",
-                    border: `1px solid ${isPositive ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    color: isPositive ? "var(--green-light)" : "var(--red-light)",
-                    whiteSpace: "nowrap",
-                }}>
-                    {isPositive ? "+" : ""}{delta.toFixed(2)}
-                </div>
+                <span className="mono" style={{ fontSize: "0.68rem", fontWeight: 700, alignSelf: "center", color: pos ? "var(--green-text)" : "var(--red-text)" }}>
+                    {pos ? "+" : ""}{d.toFixed(2)}
+                </span>
             </div>
-        </div>
+        </motion.div>
     );
 }
 
-function TemporalMiniViz({ bullets }: { bullets: string[] }) {
-    const trendLine = bullets.find(b => b.toLowerCase().includes("trend"));
-    const velocityLine = bullets.find(b => b.toLowerCase().includes("velocity"));
-    const stabilityLine = bullets.find(b => b.toLowerCase().includes("stability"));
-    const items = [
-        trendLine && { icon: "📈", text: trendLine },
-        velocityLine && { icon: "⚡", text: velocityLine },
-        stabilityLine && { icon: "🔄", text: stabilityLine },
-    ].filter(Boolean);
+const cardVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.97 },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" as const, delay: 0.15 } },
+};
 
-    if (items.length === 0) return null;
-
-    return (
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px", marginBottom: "6px" }}>
-            {items.map((item, idx) => item && (
-                <div key={idx} style={{
-                    padding: "8px 14px", background: "rgba(167,139,250,0.06)",
-                    borderRadius: "var(--radius-sm)", border: "1px solid rgba(167,139,250,0.1)",
-                    fontSize: "0.72rem", color: "var(--purple-light)",
-                }}>
-                    {item.icon} {item.text}
-                </div>
-            ))}
-        </div>
-    );
-}
-
-export default function ExplanationSections({ sections }: ExplanationSectionsProps) {
-    const [expandedSet, setExpandedSet] = useState<Set<number>>(() => {
-        const initial = new Set<number>();
-        sections.forEach((s, i) => { if (s.type === "SUMMARY") initial.add(i); });
-        return initial;
+export default function ExplanationSections({ sections }: Props) {
+    const [exp, setExp] = useState<Set<number>>(() => {
+        const s = new Set<number>();
+        sections.forEach((sec, i) => { if (sec.type === "SUMMARY") s.add(i); });
+        return s;
     });
 
-    const toggle = (idx: number) => {
-        setExpandedSet((prev) => {
-            const next = new Set(prev);
-            if (next.has(idx)) next.delete(idx); else next.add(idx);
-            return next;
-        });
-    };
+    const toggle = (i: number) => setExp(p => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
 
     return (
-        <div className="glass-card animate-fade-in" style={{ padding: "24px" }}>
-            {/* Header */}
-            <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px",
-            }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{
-                        width: "28px", height: "28px", borderRadius: "var(--radius-sm)",
-                        background: "var(--blue-surface)", border: "1px solid rgba(59,130,246,0.15)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "0.85rem",
-                    }}>
-                        📋
-                    </div>
-                    <span style={{
-                        fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em",
-                        textTransform: "uppercase", color: "var(--text-muted)",
-                    }}>
-                        AI Explanation
-                    </span>
-                </div>
-                <div style={{ display: "flex", gap: "6px" }}>
-                    <button className="mini-btn" onClick={() => setExpandedSet(new Set(sections.map((_, i) => i)))}>
-                        Expand All
-                    </button>
-                    <button className="mini-btn" onClick={() => setExpandedSet(new Set())}>
-                        Collapse All
-                    </button>
+        <motion.div className="card" variants={cardVariants} initial="hidden" animate="visible"
+            style={{ padding: "18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span className="label">Explanation</span>
+                <div style={{ display: "flex", gap: "4px" }}>
+                    <motion.button whileTap={{ scale: 0.95 }} className="btn" onClick={() => setExp(new Set(sections.map((_, i) => i)))}>Expand all</motion.button>
+                    <motion.button whileTap={{ scale: 0.95 }} className="btn" onClick={() => setExp(new Set())}>Collapse all</motion.button>
                 </div>
             </div>
 
-            {/* Sections */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {sections.map((section, idx) => {
-                    const isExpanded = expandedSet.has(idx);
-                    const sectionStyle = SECTION_TYPE_STYLES[section.type] || "";
-
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                {sections.map((sec, i) => {
+                    const open = exp.has(i);
+                    const cls = SECTION_TYPE_STYLES[sec.type] || "";
                     return (
-                        <div
-                            key={`${section.type}-${idx}`}
-                            className={`${sectionStyle} animate-fade-in stagger-${Math.min(idx + 1, 5)}`}
-                            style={{
-                                borderRadius: "var(--radius-md)",
-                                overflow: "hidden",
-                                transition: "all 0.25s ease",
-                            }}
-                        >
-                            <button onClick={() => toggle(idx)} className="section-header-btn">
-                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                    <span style={{ fontSize: "0.9rem" }}>{SECTION_TYPE_ICONS[section.type] || "📄"}</span>
-                                    <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{section.title}</span>
+                        <motion.div key={`${sec.type}-${i}`} className={cls}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 + i * 0.06 }}
+                            style={{ borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+                            <motion.button onClick={() => toggle(i)} className="section-btn"
+                                whileHover={{ backgroundColor: "var(--bg-hover)" }}
+                                whileTap={{ scale: 0.99 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                                    <span className="mono" style={{
+                                        width: "20px", height: "20px", borderRadius: "4px",
+                                        background: "var(--bg-muted)", display: "inline-flex", alignItems: "center",
+                                        justifyContent: "center", fontSize: "0.58rem", fontWeight: 700,
+                                        color: "var(--text-secondary)", flexShrink: 0,
+                                    }}>{ICONS[sec.type] || "•"}</span>
+                                    <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{sec.title}</span>
                                 </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                    <ContributionBadge direction={section.contribution_direction} />
-                                    {section.contribution_score != null && !isNaN(section.contribution_score) && (
-                                        <span style={{
-                                            fontFamily: "var(--font-mono)", fontSize: "0.65rem",
-                                            color: "var(--text-dim)",
-                                        }}>
-                                            {(section.contribution_score * 100).toFixed(0)}%
+                                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                                    <ContribBadge dir={sec.contribution_direction} />
+                                    {sec.contribution_score != null && !isNaN(sec.contribution_score) && (
+                                        <span className="mono" style={{ fontSize: "0.62rem", color: "var(--text-muted)" }}>
+                                            {(sec.contribution_score * 100).toFixed(0)}%
                                         </span>
                                     )}
-                                    <span style={{
-                                        fontSize: "0.7rem", color: "var(--text-dim)",
-                                        transition: "transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-                                        transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                                        display: "inline-block",
-                                    }}>
-                                        ▼
-                                    </span>
+                                    <motion.svg
+                                        animate={{ rotate: open ? 180 : 0 }}
+                                        transition={{ duration: 0.25, ease: "easeInOut" }}
+                                        style={{ width: "12px", height: "12px", color: "var(--text-muted)" }}
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                        <path d="m6 9 6 6 6-6" />
+                                    </motion.svg>
                                 </div>
-                            </button>
-
-                            <div className="section-collapsible" data-expanded={isExpanded ? "true" : "false"}>
-                                <div className="section-collapsible-inner">
-                                    <div style={{ padding: "0 16px 16px" }}>
-                                        {section.type === "TEMPORAL_EVOLUTION" && (
-                                            <TemporalMiniViz bullets={section.bullets} />
-                                        )}
-
-                                        <ul style={{ margin: 0, padding: "0 0 0 18px", listStyleType: "none" }}>
-                                            {section.bullets
-                                                .filter((b) => {
-                                                    if (section.type !== "TEMPORAL_EVOLUTION") return true;
-                                                    const lower = b.toLowerCase();
-                                                    return !lower.includes("trend") && !lower.includes("velocity") && !lower.includes("stability");
-                                                })
-                                                .map((bullet, bIdx) => (
-                                                    <li key={bIdx} style={{
-                                                        fontSize: "0.8rem", color: "var(--text-secondary)",
-                                                        lineHeight: 1.7, padding: "3px 0", position: "relative",
-                                                    }}>
-                                                        <span style={{ position: "absolute", left: "-14px", color: "var(--text-dim)" }}>›</span>
-                                                        {bullet}
-                                                    </li>
+                            </motion.button>
+                            <AnimatePresence>
+                                {open && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                                        style={{ overflow: "hidden" }}>
+                                        <div style={{ padding: "0 12px 12px" }}>
+                                            <ul style={{ margin: 0, padding: "0 0 0 12px", listStyleType: "none" }}>
+                                                {sec.bullets.map((b, j) => (
+                                                    <motion.li key={j}
+                                                        initial={{ opacity: 0, x: -8 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: j * 0.04 }}
+                                                        style={{ fontSize: "0.76rem", color: "var(--text-secondary)", lineHeight: 1.7, padding: "1px 0", position: "relative" }}>
+                                                        <span style={{ position: "absolute", left: "-10px", color: "var(--text-dim)" }}>·</span>
+                                                        {b}
+                                                    </motion.li>
                                                 ))}
-                                        </ul>
-
-                                        {section.counterfactuals && section.counterfactuals.length > 0 && (
-                                            <div style={{ marginTop: "12px" }}>
-                                                {section.counterfactuals.map((cf, cfIdx) => (
-                                                    <CounterfactualCard key={cfIdx} cf={cf} />
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                            </ul>
+                                            {sec.counterfactuals && sec.counterfactuals.length > 0 && (
+                                                <div style={{ marginTop: "8px" }}>
+                                                    {sec.counterfactuals.map((cf, j) => <CFCard key={j} cf={cf} index={j} />)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
                     );
                 })}
             </div>
-        </div>
+        </motion.div>
     );
 }
