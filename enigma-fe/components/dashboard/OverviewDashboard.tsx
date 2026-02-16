@@ -98,13 +98,14 @@ export default function OverviewDashboard({ situations, health, feed }: Props) {
 
     // Confidence trend (from feed, most recent 12)
     const confidenceTrend = useMemo(() => {
-        const recent = feed.slice(0, 12).reverse();
+        const recent = feed.slice(0, 20).reverse();
         return recent.map(a => isNaN(a.explanation.dominant_confidence) ? 0 : a.explanation.dominant_confidence);
     }, [feed]);
 
     const confidenceLabels = useMemo(() => {
-        const recent = feed.slice(0, 12).reverse();
-        return recent.map((a) => {
+        const recent = feed.slice(0, 20).reverse();
+        return recent.map((a, i) => {
+            if (i % 3 !== 0 && i !== recent.length - 1) return ""; // show every 3rd label to avoid clutter
             try {
                 const d = new Date(a.situation.last_activity);
                 if (isNaN(d.getTime())) return "—";
@@ -211,15 +212,14 @@ export default function OverviewDashboard({ situations, health, feed }: Props) {
                     style={{ padding: "18px" }}>
                     <span className="label" style={{ marginBottom: "10px", display: "block" }}>Confidence Trend</span>
                     {confidenceTrend.length >= 2
-                        ? <AreaChart data={confidenceTrend} labels={confidenceLabels} width={420} height={150} gradientId="conf-grad" />
+                        ? <AreaChart data={confidenceTrend} labels={confidenceLabels} width={520} height={170} gradientId="conf-grad" />
                         : <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-muted)", fontSize: "0.72rem" }}>Needs 2+ data points</div>}
                 </motion.div>
 
                 <motion.div className="card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                     style={{ padding: "18px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                     <span className="label" style={{ marginBottom: "10px" }}>System Convergence</span>
-                    <GaugeChart value={avgConvergence} label="Average convergence across all situations"
-                        color={avgConvergence > 0.6 ? "#10b981" : avgConvergence > 0.3 ? "#f59e0b" : "#ef4444"} />
+                    <GaugeChart value={avgConvergence} label="Average convergence across all situations" size={200} />
                 </motion.div>
             </div>
 

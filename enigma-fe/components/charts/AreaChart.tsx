@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 
 interface Point { x: number; y: number; }
@@ -34,12 +34,15 @@ function smooth(pts: Point[]): string {
 }
 
 export default function AreaChart({
-    data, labels, width = 320, height = 140, color = "var(--blue)",
+    data, labels, width = 320, height = 160, color = "var(--blue)",
     gradientId = "area-grad", showDots = true, showLabels = true, animate = true,
 }: Props) {
-    const padX = showLabels ? 28 : 8;
-    const padTop = 8;
-    const padBottom = showLabels ? 22 : 8;
+    const svgRef = useRef<SVGSVGElement>(null);
+    const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+    const padX = showLabels ? 32 : 8;
+    const padTop = 12;
+    const padBottom = showLabels ? 26 : 8;
     const chartW = width - padX * 2;
     const chartH = height - padTop - padBottom;
 
@@ -59,6 +62,20 @@ export default function AreaChart({
         return { pts: points, linePath: lp, areaPath: ap, minVal: mn, maxVal: mx };
     }, [data, chartW, chartH, padX, padTop]);
 
+    const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+        if (!svgRef.current || pts.length === 0) return;
+        const rect = svgRef.current.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        // Find closest point
+        let closest = 0;
+        let minDist = Infinity;
+        pts.forEach((p, i) => {
+            const dist = Math.abs(p.x - mx);
+            if (dist < minDist) { minDist = dist; closest = i; }
+        });
+        setHoverIdx(closest);
+    }, [pts]);
+
     if (data.length === 0) {
         return (
             <div style={{ width, height, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "0.72rem" }}>
@@ -67,13 +84,27 @@ export default function AreaChart({
         );
     }
 
+    const hp = hoverIdx !== null ? pts[hoverIdx] : null;
+    const hv = hoverIdx !== null ? data[hoverIdx] : null;
+    const hl = hoverIdx !== null && labels ? labels[hoverIdx] : null;
+
     return (
-        <svg width={width} height={height} style={{ overflow: "visible" }}>
+        <svg ref={svgRef} width={width} height={height} style={{ overflow: "visible", cursor: "crosshair" }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoverIdx(null)}>
             <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+                    <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+                    <stop offset="60%" stopColor={color} stopOpacity={0.08} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0.01} />
                 </linearGradient>
+                <linearGradient id={`${gradientId}-glow`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity={0.6} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+                <filter id={`${gradientId}-blur`}>
+                    <feGaussianBlur stdDeviation="3" />
+                </filter>
             </defs>
 
             {/* Grid lines */}
@@ -92,8 +123,16 @@ export default function AreaChart({
                 transition={{ duration: 0.6, delay: 0.4 }}
             />
 
-            {/* Line */}
-            <motion.path d={linePath} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round"
+            {/* Glow line (thicker, blurred) */}
+            <motion.path d={linePath} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round"
+                filter={`url(#${gradientId}-blur)`}
+                initial={animate ? { pathLength: 0, opacity: 0 } : undefined}
+                animate={{ pathLength: 1, opacity: 0.4 }}
+                transition={{ duration: 1.1, ease: "easeOut" as const, delay: 0.15 }}
+            />
+
+            {/* Main line */}
+            <motion.path d={linePath} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round"
                 initial={animate ? { pathLength: 0 } : undefined}
                 animate={{ pathLength: 1 }}
                 transition={{ duration: 1, ease: "easeOut" as const, delay: 0.2 }}
@@ -101,19 +140,57 @@ export default function AreaChart({
 
             {/* Dots */}
             {showDots && pts.map((p, i) => (
-                <motion.circle key={i} cx={p.x} cy={p.y} r={3} fill={color} stroke="var(--bg-card)" strokeWidth={2}
+                <motion.circle key={i} cx={p.x} cy={p.y}
+                    r={hoverIdx === i ? 5 : 3}
+                    fill={hoverIdx === i ? "var(--bg-card)" : color}
+                    stroke={color}
+                    strokeWidth={hoverIdx === i ? 2.5 : 2}
                     initial={animate ? { scale: 0 } : undefined}
                     animate={{ scale: 1 }}
-                    transition={{ delay: 0.3 + i * 0.06, type: "spring", stiffness: 300, damping: 15 }}
+                    transition={{ delay: 0.3 + i * 0.05, type: "spring", stiffness: 300, damping: 15 }}
+                    style={{ transition: "r 0.15s, fill 0.15s" }}
                 />
             ))}
+
+            {/* Hover crosshair */}
+            {hp && (
+                <>
+                    <line x1={hp.x} y1={padTop} x2={hp.x} y2={padTop + chartH}
+                        stroke={color} strokeWidth={1} strokeDasharray="4 3" opacity={0.5} />
+                    <line x1={padX} y1={hp.y} x2={width - padX} y2={hp.y}
+                        stroke={color} strokeWidth={0.5} strokeDasharray="4 3" opacity={0.3} />
+                </>
+            )}
+
+            {/* Hover tooltip */}
+            {hp && hv !== null && (
+                <g>
+                    <rect x={hp.x - 30} y={hp.y - 34} width={60} height={24} rx={6}
+                        fill="var(--bg-card)" stroke="var(--border)" strokeWidth={0.5}
+                        style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }} />
+                    <text x={hp.x} y={hp.y - 22} textAnchor="middle" dominantBaseline="middle"
+                        style={{ fontSize: "0.62rem", fontWeight: 700, fill: color, fontFamily: "var(--font-mono)" }}>
+                        {typeof hv === "number" ? (hv < 1 ? `${(hv * 100).toFixed(0)}%` : hv.toFixed(1)) : hv}
+                    </text>
+                    {hl && (
+                        <text x={hp.x} y={hp.y - 42} textAnchor="middle"
+                            style={{ fontSize: "0.44rem", fill: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            {hl}
+                        </text>
+                    )}
+                </g>
+            )}
 
             {/* X labels */}
             {showLabels && labels && labels.map((l, i) => {
                 const x = padX + (labels.length > 1 ? (i / (labels.length - 1)) * chartW : chartW / 2);
                 return (
                     <text key={i} x={x} y={height - 4} textAnchor="middle"
-                        style={{ fontSize: "0.5rem", fill: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                        style={{
+                            fontSize: "0.46rem", fill: hoverIdx === i ? color : "var(--text-muted)",
+                            fontFamily: "var(--font-mono)", fontWeight: hoverIdx === i ? 600 : 400,
+                            transition: "fill 0.15s",
+                        }}>
                         {l}
                     </text>
                 );
@@ -122,13 +199,13 @@ export default function AreaChart({
             {/* Y min/max */}
             {showLabels && (
                 <>
-                    <text x={padX - 4} y={padTop + 4} textAnchor="end"
+                    <text x={padX - 6} y={padTop + 4} textAnchor="end"
                         style={{ fontSize: "0.46rem", fill: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                        {maxVal.toFixed(maxVal < 10 ? 1 : 0)}
+                        {maxVal < 1 ? `${(maxVal * 100).toFixed(0)}%` : maxVal.toFixed(0)}
                     </text>
-                    <text x={padX - 4} y={padTop + chartH} textAnchor="end"
+                    <text x={padX - 6} y={padTop + chartH} textAnchor="end"
                         style={{ fontSize: "0.46rem", fill: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                        {minVal.toFixed(minVal < 10 ? 1 : 0)}
+                        {minVal < 1 ? `${(minVal * 100).toFixed(0)}%` : minVal.toFixed(0)}
                     </text>
                 </>
             )}
