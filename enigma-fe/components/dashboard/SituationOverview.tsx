@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { SituationAnalysis } from "@/types/dashboard";
 import { motion } from "framer-motion";
@@ -24,9 +24,9 @@ function Ring({ value, size = 52, stroke = 4, color }: { value: number; size?: n
 }
 
 function dur(d: string | undefined | null): string {
-    if (!d) return "â€”";
+    if (!d) return "—";
     const t = new Date(d).getTime();
-    if (isNaN(t)) return "â€”";
+    if (isNaN(t)) return "—";
     const diff = Date.now() - t;
     if (diff < 0) return "now";
     const s = Math.floor(diff / 1000);
@@ -37,7 +37,7 @@ function dur(d: string | undefined | null): string {
 }
 
 function pct(v: number | null | undefined): string {
-    if (v == null || isNaN(v)) return "â€”";
+    if (v == null || isNaN(v)) return "—";
     return `${Math.round(v * 100)}%`;
 }
 
@@ -95,10 +95,10 @@ export default function SituationOverview({ analysis }: Props) {
                 border: "1px solid var(--border)",
             }}>
                 {[
-                    { l: "Evidence", v: String(situation.evidence_count ?? "â€”"), c: "var(--text-primary)" },
+                    { l: "Evidence", v: String(situation.evidence_count ?? "—"), c: "var(--text-primary)" },
                     { l: "Anomaly", v: pct(situation.max_anomaly), c: (situation.max_anomaly ?? 0) > 0.8 ? "var(--red-text)" : (situation.max_anomaly ?? 0) > 0.5 ? "var(--amber-text)" : "var(--green-text)" },
                     { l: "Stability", v: pct(langgraph.belief_stability), c: "var(--blue-text)" },
-                    { l: "Iterations", v: String(langgraph.iterations ?? "â€”"), c: "var(--text-primary)" },
+                    { l: "Iterations", v: String(langgraph.iterations ?? "—"), c: "var(--text-primary)" },
                 ].map((m, i) => (
                     <motion.div key={m.l} className="metric" style={{ background: "var(--bg-card)" }}
                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.08 }}>

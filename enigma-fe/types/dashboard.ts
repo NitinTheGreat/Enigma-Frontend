@@ -125,6 +125,12 @@ export interface SituationAnalysis {
     langgraph: LangGraphResult;
     explanation: Explanation;
     human_readable: string;
+    /* Client assigned arrival number, absent on the wire. The feed is an append
+       log, so entries need an identity of their own: the server re-analyses a
+       situation whenever a signal arrives, and two analyses that start before
+       either finishes report the same version, which makes situation id and
+       version together a duplicate key rather than a unique one. */
+    feed_seq?: number;
 }
 
 // ── Health ─────────────────────────────────────────────────────

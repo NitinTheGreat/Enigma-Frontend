@@ -98,7 +98,7 @@ export default function DashboardPage() {
                     <ExplanationSections sections={sel.explanation.sections} />
                   </div>
                   <div style={{ minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                    <LiveFeed feed={feed} />
+                    <LiveFeed feed={feed} onSelect={handleSelect} selectedId={selId} />
                   </div>
                 </div>
               </motion.div>

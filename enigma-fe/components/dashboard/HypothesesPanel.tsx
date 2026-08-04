@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { Hypothesis } from "@/types/dashboard";
 import { motion } from "framer-motion";
@@ -53,7 +53,7 @@ export default function HypothesesPanel({ hypotheses, dominantId }: Props) {
                             }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
                                 <span style={{ fontSize: "0.76rem", color: "var(--text-primary)", flex: 1, lineHeight: 1.5 }}>
-                                    {dom && <span style={{ color: "var(--blue-text)", fontWeight: 700, marginRight: "3px" }}>â˜…</span>}
+                                    {dom && <span style={{ color: "var(--blue-text)", fontWeight: 700, marginRight: "3px" }}>★</span>}
                                     {h.description}
                                 </span>
                                 <span className={`badge ${sBadge(h.status)}`} style={{ flexShrink: 0 }}>{h.status}</span>
