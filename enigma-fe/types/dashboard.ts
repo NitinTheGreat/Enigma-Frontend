@@ -2,25 +2,38 @@
    Enigma Dashboard — TypeScript Interfaces
    ═══════════════════════════════════════════════════════════════ */
 
+/* Field names below mirror the backend wire format exactly. They were
+   previously invented on the client and never sent, which left eight panels
+   rendering zeros. See paper/EVIDENCE.md section F1. */
+
 // ── Situation ──────────────────────────────────────────────────
 export interface SituationSummary {
     situation_id: string;
-    lifecycle: "active" | "dormant" | "expired";
+    lifecycle: "active" | "dormant" | "expired" | null;
     evidence_count: number;
     signal_types: string[];
     entities: string[];
-    created_at: string;
-    last_activity: string;
-    max_anomaly: number;
     sources: string[];
+    created_at: string;
+    last_updated: string;
+    last_activity: string;
+    version: number;
+    max_anomaly: number;
+    mean_anomaly: number;
+    abstained_evidence_count: number;
 }
 
 // ── Hypothesis ─────────────────────────────────────────────────
 export interface Hypothesis {
-    id: string;
+    hypothesis_id: string;
     description: string;
     confidence: number;
-    status: "active" | "pruned" | "confirmed";
+    status: "active" | "pruned" | "converged";
+    belief_velocity: number;
+    belief_acceleration: number;
+    dominant_iterations: number;
+    confidence_before_inertia?: number;
+    inertia_clamped?: boolean;
 }
 
 // ── LangGraph ──────────────────────────────────────────────────
@@ -79,24 +92,28 @@ export interface Explanation {
 
 // ── Temporal & Reasoning ───────────────────────────────────────
 export interface TemporalData {
+    situation_id: string;
     event_count: number;
-    event_rate: number;
-    mean_anomaly: number;
-    max_anomaly: number;
-    unique_types: number;
-    unique_sources: number;
-    is_bursting: boolean;
-    is_quiet: boolean;
-    duration_seconds: number;
+    active_duration_seconds: number;
+    event_rate_per_minute: number;
+    last_event_age_seconds: number;
+    mean_interval_seconds: number | null;
+    burst_detected: boolean;
+    quiet_detected: boolean;
 }
 
 export interface ReasoningData {
-    confidence: number;
-    trend: "escalating" | "deescalating" | "stable";
+    situation_id: string;
     evidence_count: number;
-    anomaly_mean: number;
-    diversity: number;
-    burst_active: boolean;
+    event_rate: number;
+    burst_detected: boolean;
+    quiet_detected: boolean;
+    confidence_level: number;
+    trend: "escalating" | "deescalating" | "stable";
+    source_diversity: number;
+    mean_anomaly_score: number;
+    abstained_evidence_count: number;
+    abstained_fraction: number;
 }
 
 // ── Full Analysis Payload ──────────────────────────────────────

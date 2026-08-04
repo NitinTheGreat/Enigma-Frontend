@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { Hypothesis } from "@/types/dashboard";
 import { motion } from "framer-motion";
@@ -9,7 +9,7 @@ interface Props {
 }
 
 function sBadge(s: string): string {
-    return s === "confirmed" ? "badge-green" : s === "pruned" ? "badge-red" : "badge-blue";
+    return s === "converged" ? "badge-green" : s === "pruned" ? "badge-red" : "badge-blue";
 }
 
 const cardVariants = {
@@ -39,9 +39,9 @@ export default function HypothesesPanel({ hypotheses, dominantId }: Props) {
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, overflowY: "auto" }}>
                 {sorted.map((h, i) => {
                     const p = isNaN(h.confidence) ? 0 : Math.round(h.confidence * 100);
-                    const dom = h.id === dominantId;
+                    const dom = h.hypothesis_id === dominantId;
                     return (
-                        <motion.div key={h.id}
+                        <motion.div key={h.hypothesis_id}
                             variants={hypVariants} custom={i} initial="hidden" animate="visible"
                             whileHover={{ scale: 1.01, x: 2 }}
                             transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -53,7 +53,7 @@ export default function HypothesesPanel({ hypotheses, dominantId }: Props) {
                             }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
                                 <span style={{ fontSize: "0.76rem", color: "var(--text-primary)", flex: 1, lineHeight: 1.5 }}>
-                                    {dom && <span style={{ color: "var(--blue-text)", fontWeight: 700, marginRight: "3px" }}>★</span>}
+                                    {dom && <span style={{ color: "var(--blue-text)", fontWeight: 700, marginRight: "3px" }}>â˜…</span>}
                                     {h.description}
                                 </span>
                                 <span className={`badge ${sBadge(h.status)}`} style={{ flexShrink: 0 }}>{h.status}</span>

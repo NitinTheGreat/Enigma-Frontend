@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState, useEffect } from "react";
 import type { SituationAnalysis } from "@/types/dashboard";
@@ -55,13 +55,13 @@ export default function LiveFeed({ feed }: Props) {
                 {feed.length === 0 && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         style={{ textAlign: "center", padding: "28px 14px", color: "var(--text-muted)", fontSize: "0.78rem" }}>
-                        Waiting for events…
+                        Waiting for eventsâ€¦
                     </motion.div>
                 )}
                 <AnimatePresence initial={false}>
                     {feed.map((a, i) => {
                         const sit = a.situation;
-                        const dom = a.langgraph.hypotheses.find(h => h.id === a.explanation.dominant_hypothesis_id);
+                        const dom = a.langgraph.hypotheses.find(h => h.hypothesis_id === a.explanation.dominant_hypothesis_id);
                         const conf = isNaN(a.explanation.dominant_confidence) ? 0 : Math.round(a.explanation.dominant_confidence * 100);
                         return (
                             <motion.div key={`${sit.situation_id}-${sit.last_activity}-${i}`}
